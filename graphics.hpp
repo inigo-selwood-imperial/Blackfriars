@@ -1,8 +1,8 @@
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <string>
-#include <
 
 #include <SDL2/SDL.h>
 
@@ -23,7 +23,7 @@ struct Font {
 
 };
 
-Font(const std::string &name, const unsigned int &size) : name(name),
+Font::Font(const std::string &name, const unsigned int &size) : name(name),
         size(size) {
 
     // Create an absolute path for the font file name
@@ -52,7 +52,7 @@ struct Surface {
     Surface(const std::string &file_name);
     Surface(const SDL_Rect &size, const SDL_Colour &colour);
     Surface(const Font &font, const SDL_Colour &colour,
-            const std::String &text);
+            const std::string &text);
 
 };
 
@@ -60,7 +60,7 @@ Surface::Surface(const std::string &file_name) {
 
     // Create an absolute path for the font file name
     std::string path = SDL_GetBasePath();
-    path += "..\\resources\\" + name;
+    path += "..\\resources\\" + file_name;
 
     // Try to load the image
     data = std::shared_ptr<SDL_Surface>(IMG_Load(path.c_str()),
@@ -89,7 +89,7 @@ Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
     }
 
     // Fill the surface with a given colour
-    SDL_FillRect(data.get(), nullptr, SDL_MapRGBA(surface.get()->format,
+    SDL_FillRect(data.get(), nullptr, SDL_MapRGBA(data.get()->format,
             colour.r, colour.g, colour.b, colour.a));
 }
 
@@ -116,12 +116,12 @@ public:
 
     std::shared_ptr<SDL_Texture> data;
 
-    SDL_Rect Texture::size();
+    SDL_Rect size() const;
 
 };
 
 // Get the texture's size
-SDL_Rect Texture::size() {
+SDL_Rect Texture::size() const {
     if(data == nullptr)
         return {0, 0, 0, 0};
 
@@ -134,10 +134,17 @@ SDL_Rect Texture::size() {
 
 class Window {
 
-    Window(const std::stirng &title, const unsigned int &width,
+public:
+
+    std::shared_ptr<SDL_Window> context;
+
+    Window(const std::string &title, const unsigned int &width,
             const unsigned int &height);
 
-    void set_icon(const Surface &surface);
+    void set_icon(const Surface &surface) const;
+
+    void hide() const;
+    void show() const;
 
 };
 
@@ -152,8 +159,19 @@ Window::Window(const std::string &title, const unsigned int &width,
 
 // Set the window icon
 // NOTE: This is not the same as the application icon
-void Window::set_icon(const Surface &surface) {
+void Window::set_icon(const Surface &surface) const {
     SDL_SetWindowIcon(context.get(), surface.data.get());
+}
+
+// Hide the window
+// NOTE: This is not the same as minimizing it
+void Window::hide() const {
+    SDL_HideWindow(context.get());
+}
+
+// Show the window
+void Window::show() const {
+    SDL_ShowWindow(context.get());
 }
 
 // ******************************************************************** Renderer
@@ -170,24 +188,24 @@ public:
 
     Renderer(const Window &window);
 
-    Texture create_texture(const Surface &surface);
+    Texture create_texture(const Surface &surface) const;
 
     void draw_line(const SDL_Point &from_point, const SDL_Point &to_point,
-            const SDL_Colour &colour);
+            const SDL_Colour &colour) const;
     void draw_filled_rectangle(const SDL_Rect &region,
-            const SDL_Colour &colour);
+            const SDL_Colour &colour) const;
 
     void copy(const Texture &texture, const SDL_Rect &copy_region,
-        const SDL_Rect &render_region);
+        const SDL_Rect &render_region) const;
     void copy(const Texture &texture, const SDL_Rect &copy_region,
             const SDL_Rect &render_region, const bool &mirrored,
-            const int &theta);
+            const int &theta) const;
 
     void set_clear_colour(const SDL_Colour &colour);
-    void set_draw_colour(const SDL_Colour &colour);
+    void set_draw_colour(const SDL_Colour &colour) const;
 
-    void clear();
-    void present();
+    void clear() const;
+    void present() const;
 
 };
 
@@ -196,7 +214,7 @@ Renderer::Renderer(const Window &window) {
     // Try to create renderer context
     auto flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
     context = std::shared_ptr<SDL_Renderer>(
-            SDL_CreateRenderer(window.data.get(), -1, flags),
+            SDL_CreateRenderer(window.context.get(), -1, flags),
             SDL_DestroyRenderer);
 
     // Check renderer was created properly
@@ -207,20 +225,23 @@ Renderer::Renderer(const Window &window) {
         throw -1;
     }
 
+    window.show();
+
     clear_colour = {0, 0, 0, 0};
 }
 
 // Create a texture
-Texture Renderer::create_texture(const Surface &surface) {
+Texture Renderer::create_texture(const Surface &surface) const {
     Texture result;
-    result.data.get() = SDL_CreateTextureFromSurface(context.get(),
-            surface.data.get());
+    result.data = std::shared_ptr<SDL_Texture>(
+            SDL_CreateTextureFromSurface(context.get(), surface.data.get()),
+            SDL_DestroyTexture);
     return result;
 }
 
 // Draw a single-pixel thick line on the render context
 void Renderer::draw_line(const SDL_Point &from_point, const SDL_Point &to_point,
-        const SDL_Colour &colour) {
+        const SDL_Colour &colour) const {
 
     set_draw_colour(colour);
     SDL_RenderDrawLine(context.get(), from_point.x, from_point.y, to_point.x,
@@ -230,7 +251,7 @@ void Renderer::draw_line(const SDL_Point &from_point, const SDL_Point &to_point,
 
 // Draw a solid rectangle of a given colour to the render context
 void Renderer::draw_filled_rectangle(const SDL_Rect &region,
-        const SDL_Colour &colour) {
+        const SDL_Colour &colour) const {
 
     set_draw_colour(colour);
     SDL_RenderFillRect(context.get(), &region);
@@ -238,7 +259,7 @@ void Renderer::draw_filled_rectangle(const SDL_Rect &region,
 
 // Copy a given region of a texture to a given region of the render context
 void Renderer::copy(const Texture &texture, const SDL_Rect &copy_region,
-        const SDL_Rect &render_region) {
+        const SDL_Rect &render_region) const {
 
     SDL_RenderCopy(context.get(), texture.data.get(), &copy_region,
             &render_region);
@@ -247,28 +268,29 @@ void Renderer::copy(const Texture &texture, const SDL_Rect &copy_region,
 // Copy a texture, optionally mirroring it, and rotating it about its center
 void Renderer::copy(const Texture &texture, const SDL_Rect &copy_region,
         const SDL_Rect &render_region, const bool &mirrored,
-        const int &theta) {
+        const int &theta) const {
 
+    auto flip_flag = mirrored ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
     SDL_RenderCopyEx(context.get(), texture.data.get(), &copy_region,
-            &render_region, theta, nullptr, mirrored);
+            &render_region, theta, nullptr, flip_flag);
 }
 
 // Set the colour to which the renderer is cleared
-void set_clear_colour(const SDL_Colour &colour) {
+void Renderer::set_clear_colour(const SDL_Colour &colour) {
     clear_colour = colour;
 }
 
 // Set the colour used be the renderer, as used by the draw functions
-void Renderer::set_draw_colour(const SDL_Colour &colour) {
-    SDL_RenderDrawColor(context.get(), colour.r, colour.g, colour.b, colour.a);
+void Renderer::set_draw_colour(const SDL_Colour &colour) const {
+    SDL_SetRenderDrawColor(context.get(), colour.r, colour.g, colour.b, colour.a);
 }
 
 // Clear the render context
-void Renderer::clear() {
+void Renderer::clear() const {
     SDL_RenderClear(context.get());
 }
 
 // Present the render context to the window
-void Renderer::present() {
+void Renderer::present() const {
     SDL_RenderPresent(context.get());
 }
