@@ -43,9 +43,13 @@ Font(const std::string &name, const unsigned int &size) : name(name),
 
 // ********************************************************************* Surface
 
+class Renderer;
+
 class Surface {
 
 private:
+
+    friend class Renderer;
 
     std::shared_ptr<SDL_Surface> data;
 
@@ -130,15 +134,25 @@ class Window {
 Window::Window(const std::string &title, const unsigned int &width,
         const unsigned int &height) {
 
+    auto position = SDL_WINDOWPOS_CENTERED;
+    auto flags = SDL_WINDOW_HIDDEN;
+    context = std::shared_ptr<SDL_Window>(SDL_CreateWindow(title.c_str(),
+            position, position, width, height, flags), SDL_DestroyWindow);
 }
 
 void Window::set_icon(const Surface &surface) {
-
+    SDL_SetWindowIcon(context.get(), surface.data.get());
 }
 
 // ******************************************************************** Renderer
 
 class Renderer {
+
+private:
+
+    std::shared_ptr<SDL_Renderer> context;
+
+public:
 
     Renderer(const Window &window);
 
@@ -164,10 +178,22 @@ class Renderer {
 
 Renderer::Renderer(const Window &window) {
 
+    // Try to create renderer context
+    auto flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+    context = std::shared_ptr<SDL_Renderer>(
+            SDL_CreateRenderer(window.data.get(), -1, flags),
+            SDL_DestroyRenderer);
+
+    // Check renderer was created properly
+    if(renderer == nullptr) {
+        std::cerr << "Couldn't create renderer" << std::endl <<
+                "\t" << "SDL error:" << std::endl <<
+                SDL_GetError() << std::endl;
+        throw -1;
+    }
 }
 
 Texture Renderer::create_texture(const Surface &surface) {
-
 }
 
 void Renderer::draw_line(const SDL_Point &from_point, const SDL_Point &to_point,
