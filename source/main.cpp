@@ -37,6 +37,7 @@ int main(int argument_count, char *argument_vector[]) {
         state->start(renderer);
 
         // Start the application loop
+        double previous_ticks = 0;
         bool running = true;
         while(running) {
 
@@ -74,8 +75,12 @@ int main(int argument_count, char *argument_vector[]) {
             renderer.present();
 
             // Cap the frame rate
-            // TODO: Replace with something more efficient
-            SDL_Delay(80);
+
+            long current_ticks = SDL_GetTicks();
+            long delta = current_ticks - previous_ticks;
+            previous_ticks = current_ticks;
+            if(delta < 33.3)
+                SDL_Delay(33.3 - delta);
         }
 
         // Stop the current state
