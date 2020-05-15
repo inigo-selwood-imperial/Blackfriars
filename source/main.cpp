@@ -34,7 +34,7 @@ int main(int argument_count, char *argument_vector[]) {
 
         // Create and start a state
         auto state = std::shared_ptr<State>(new SchematicEditor());
-        state->start(renderer);
+        state->start();
 
         // Start the application loop
         double previous_ticks = 0;
@@ -85,12 +85,14 @@ int main(int argument_count, char *argument_vector[]) {
 
         // Stop the current state
         state->stop();
-
-        // Free subsystem memory
-        quit();
-        return 0;
     }
     catch(...) {
         return -1;
     }
+
+    // Free subsystem memory
+    // NOTE: Placed outside main loop so that std::shared_ptr objects fall out
+    // of scope (prevents SIGSEGV)
+    quit();
+    return 0;
 }
