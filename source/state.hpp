@@ -6,7 +6,7 @@ class State {
 
 public:
 
-    virtual void start(Renderer &renderer) {}
+    virtual void start() {}
     virtual void stop() {}
 
     virtual void key_pressed(const SDL_Keycode &keycode) {}
