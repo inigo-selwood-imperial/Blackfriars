@@ -9,22 +9,61 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 
+typedef std::size_t Hash;
+
+namespace std {
+
+template<>
+struct hash<SDL_Rect> {
+
+    Hash operator()(SDL_Rect const &region) const noexcept {
+        Hash x = std::hash<int>{}(region.x);
+        Hash y = std::hash<int>{}(region.y);
+        Hash width = std::hash<int>{}(region.w);
+        Hash height = std::hash<int>{}(region.h);
+
+        return x ^ (y ^ (width ^ (height << 1) << 1) << 1);
+    }
+
+};
+
+template<>
+struct hash<SDL_Colour> {
+
+    Hash operator()(SDL_Colour const &colour) const noexcept {
+        Hash red = std::hash<uint8_t>{}(colour.r);
+        Hash green = std::hash<uint8_t>{}(colour.g);
+        Hash blue = std::hash<uint8_t>{}(colour.b);
+        Hash alpha = std::hash<uint8_t>{}(colour.a);
+
+        return red ^ (green ^ (blue ^ (alpha << 1) << 1) << 1);
+    }
+
+};
+
+};
+
 // ************************************************************************ Font
 
 struct Font {
 
     std::shared_ptr<TTF_Font> data;
 
-    const std::string &name;
+    Hash hash;
 
-    const unsigned int &size;
+    std::string name;
+
+    unsigned int size;
 
     Font(const std::string &name, const unsigned int &size);
 
 };
 
-Font::Font(const std::string &name, const unsigned int &size) : name(name),
-        size(size) {
+Font::Font(const std::string &name, const unsigned int &size) {
+    this->name = name;
+    this->size = size;
+    this->hash = std::hash<std::string>{}(name) ^
+            (std::hash<unsigned int>{}(size) << 1);
 
     // Create an absolute path for the font file name
     std::string path = SDL_GetBasePath();
@@ -49,6 +88,8 @@ struct Surface {
 
     std::shared_ptr<SDL_Surface> data;
 
+    Hash hash;
+
     Surface(const std::string &file_name);
     Surface(const SDL_Rect &size, const SDL_Colour &colour);
     Surface(const std::string &text, const Font &font,
@@ -57,6 +98,7 @@ struct Surface {
 };
 
 Surface::Surface(const std::string &file_name) {
+    hash = std::hash<std::string>{}(file_name);
 
     // Create an absolute path for the font file name
     std::string path = SDL_GetBasePath();
@@ -76,6 +118,7 @@ Surface::Surface(const std::string &file_name) {
 }
 
 Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
+    hash = std::hash<SDL_Rect>{}(size) ^ (std::hash<SDL_Colour>{}(colour) << 1);
 
     // Try to create the surface
     data = std::shared_ptr<SDL_Surface>(SDL_CreateRGBSurface(0, size.w, size.h,
@@ -95,6 +138,9 @@ Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
 
 Surface::Surface(const std::string &text, const Font &font,
         const SDL_Colour &colour) {
+    auto colour_hash = std::hash<SDL_Colour>{}(colour);
+    auto text_hash = std::hash<std::string>{}(text);
+    hash = text_hash ^ (font.hash ^ (colour_hash << 1) << 1);
 
     // Try to render the text using the font specified
     data = std::shared_ptr<SDL_Surface>(TTF_RenderText_Blended(font.data.get(),
@@ -108,27 +154,6 @@ Surface::Surface(const std::string &text, const Font &font,
     }
 }
 
-// ********************************************************************* Texture
-
-class Texture {
-
-public:
-
-    std::shared_ptr<SDL_Texture> data;
-
-    SDL_Rect size() const;
-
-};
-
-// Get the texture's size
-SDL_Rect Texture::size() const {
-    if(data == nullptr)
-        return {0, 0, 0, 0};
-
-    SDL_Rect result;
-    SDL_QueryTexture(data.get(), nullptr, nullptr, &result.w, &result.h);
-    return result;
-}
 
 // ********************************************************************** Window
 
@@ -188,18 +213,10 @@ public:
 
     Renderer(const Window &window);
 
-    Texture create_texture(const Surface &surface);
-
     void draw_line(const SDL_Point &from_point, const SDL_Point &to_point,
             const SDL_Colour &colour);
     void draw_filled_rectangle(const SDL_Rect &region,
             const SDL_Colour &colour);
-
-    void copy(const Texture &texture, const SDL_Rect &copy_region,
-        const SDL_Rect &render_region);
-    void copy(const Texture &texture, const SDL_Rect &copy_region,
-            const SDL_Rect &render_region, const bool &mirrored,
-            const int &theta);
 
     void set_clear_colour(const SDL_Colour &colour);
     void set_draw_colour(const SDL_Colour &colour);
@@ -230,15 +247,6 @@ Renderer::Renderer(const Window &window) {
     clear_colour = {0, 0, 0, 0};
 }
 
-// Create a texture
-Texture Renderer::create_texture(const Surface &surface) {
-    Texture result;
-    result.data = std::shared_ptr<SDL_Texture>(
-            SDL_CreateTextureFromSurface(context.get(), surface.data.get()),
-            SDL_DestroyTexture);
-    return result;
-}
-
 // Draw a single-pixel thick line on the render context
 void Renderer::draw_line(const SDL_Point &from_point, const SDL_Point &to_point,
         const SDL_Colour &colour) {
@@ -256,24 +264,6 @@ void Renderer::draw_filled_rectangle(const SDL_Rect &region,
     set_draw_colour(colour);
     SDL_RenderFillRect(context.get(), &region);
     set_draw_colour(clear_colour);
-}
-
-// Copy a given region of a texture to a given region of the render context
-void Renderer::copy(const Texture &texture, const SDL_Rect &copy_region,
-        const SDL_Rect &render_region) {
-
-    SDL_RenderCopy(context.get(), texture.data.get(), &copy_region,
-            &render_region);
-}
-
-// Copy a texture, optionally mirroring it, and rotating it about its center
-void Renderer::copy(const Texture &texture, const SDL_Rect &copy_region,
-        const SDL_Rect &render_region, const bool &mirrored,
-        const int &theta) {
-
-    auto flip_flag = mirrored ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-    SDL_RenderCopyEx(context.get(), texture.data.get(), &copy_region,
-            &render_region, theta, nullptr, flip_flag);
 }
 
 // Set the colour to which the renderer is cleared
