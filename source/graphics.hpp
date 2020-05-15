@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -8,6 +9,11 @@
 
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
+
+// TODO: Replace debug preprocessor guards with a logging system
+#define DEBUG
+
+// ************************************************************************ Hash
 
 typedef std::size_t Hash;
 
@@ -41,7 +47,7 @@ struct hash<SDL_Colour> {
 
 };
 
-};
+}; // Namespace std
 
 // ************************************************************************ Font
 
@@ -55,9 +61,24 @@ struct Font {
 
     unsigned int size;
 
+    static void delete_font(TTF_Font *font);
+
     Font(const std::string &name, const unsigned int &size);
 
 };
+
+// Frees the memory held by a font
+void Font::delete_font(TTF_Font *font) {
+    if(font == nullptr)
+        return;
+
+#ifdef DEBUG
+        std::cout << "Deleting font" << std::endl;
+#endif // DEBUG
+
+    TTF_CloseFont(font);
+    font = nullptr;
+}
 
 Font::Font(const std::string &name, const unsigned int &size) {
     this->name = name;
@@ -69,9 +90,13 @@ Font::Font(const std::string &name, const unsigned int &size) {
     std::string path = SDL_GetBasePath();
     path += "..\\resources\\" + name;
 
+#ifdef DEBUG
+    std::cout << "Creating font" << std::endl;
+#endif // DEBUG
+
     // Try to load the font
     data = std::shared_ptr<TTF_Font>(TTF_OpenFont(path.c_str(), size),
-            TTF_CloseFont);
+            delete_font);
 
     // Check the font was loaded properly
     if(data == nullptr) {
@@ -90,13 +115,28 @@ struct Surface {
 
     Hash hash;
 
-    Surface();
+    static void delete_surface(SDL_Surface *surface);
+
+    Surface() {}
     Surface(const std::string &file_name);
     Surface(const SDL_Rect &size, const SDL_Colour &colour);
     Surface(const std::string &text, const Font &font,
             const SDL_Colour &colour);
 
 };
+
+// Frees the memory held by a surface
+void Surface::delete_surface(SDL_Surface *surface) {
+    if(surface == nullptr)
+        return;
+
+#ifdef DEBUG
+    std::cout << "Deleting surface" << std::endl;
+#endif // DEBUG
+
+    SDL_FreeSurface(surface);
+    surface = nullptr;
+}
 
 Surface::Surface(const std::string &file_name) {
     hash = std::hash<std::string>{}(file_name);
@@ -105,9 +145,13 @@ Surface::Surface(const std::string &file_name) {
     std::string path = SDL_GetBasePath();
     path += "..\\resources\\" + file_name;
 
+#ifdef DEBUG
+    std::cout << "Creating surface" << std::endl;
+#endif // DEBUG
+
     // Try to load the image
     data = std::shared_ptr<SDL_Surface>(IMG_Load(path.c_str()),
-            SDL_FreeSurface);
+            delete_surface);
 
     // Check the image was loaded properly
     if(data == nullptr) {
@@ -122,9 +166,13 @@ Surface::Surface(const std::string &file_name) {
 Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
     hash = std::hash<SDL_Rect>{}(size) ^ (std::hash<SDL_Colour>{}(colour) << 1);
 
+#ifdef DEBUG
+    std::cout << "Creating surface" << std::endl;
+#endif // DEBUG
+
     // Try to create the surface
     data = std::shared_ptr<SDL_Surface>(SDL_CreateRGBSurface(0, size.w, size.h,
-            32, 0, 0, 0, 0), SDL_FreeSurface);
+            32, 0, 0, 0, 0), delete_surface);
 
     // Check the surface was created
     if(data == nullptr) {
@@ -145,9 +193,13 @@ Surface::Surface(const std::string &text, const Font &font,
     auto text_hash = std::hash<std::string>{}(text);
     hash = text_hash ^ (font.hash ^ (colour_hash << 1) << 1);
 
-    // Try to render the text using the font specified
+#ifdef DEBUG
+    std::cout << "Creating surface" << std::endl;
+#endif // DEBUG
+
+    // Try to create the text surface using the font specified
     data = std::shared_ptr<SDL_Surface>(TTF_RenderText_Blended(font.data.get(),
-            text.c_str(), colour), SDL_FreeSurface);
+            text.c_str(), colour), delete_surface);
 
     // Check the text was created
     if(data == nullptr) {
@@ -166,6 +218,8 @@ public:
 
     std::shared_ptr<SDL_Window> context;
 
+    static void delete_window(SDL_Window *window);
+
     Window(const std::string &title, const unsigned int &width,
             const unsigned int &height);
 
@@ -176,13 +230,37 @@ public:
 
 };
 
+// Frees the memory held by a window
+void Window::delete_window(SDL_Window *window) {
+    if(window == nullptr)
+        return;
+
+#ifdef DEBUG
+    std::cout << "Deleting window" << std::endl;
+#endif // DEBUG
+
+    SDL_DestroyWindow(window);
+    window = nullptr;
+}
+
 Window::Window(const std::string &title, const unsigned int &width,
         const unsigned int &height) {
+
+#ifdef DEBUG
+    std::cout << "Creating window" << std::endl;
+#endif // DEBUG
 
     auto position = SDL_WINDOWPOS_CENTERED;
     auto flags = SDL_WINDOW_HIDDEN;
     context = std::shared_ptr<SDL_Window>(SDL_CreateWindow(title.c_str(),
-            position, position, width, height, flags), SDL_DestroyWindow);
+            position, position, width, height, flags), delete_window);
+
+    if(context == nullptr) {
+        std::cerr << "Couldn't create window" << std::endl <<
+                "\t" << "SDL error:" << std::endl <<
+                SDL_GetError() << std::endl;
+        throw -1;
+    }
 }
 
 // Set the window icon
@@ -214,9 +292,11 @@ private:
 
     std::map<Hash, std::shared_ptr<SDL_Texture>> textures;
 
-    std::shared_ptr<SDL_Texture> get_texture(const Surface &surface);
+    std::shared_ptr<SDL_Texture> get_texture(Surface &surface);
 
 public:
+
+    static void delete_renderer(SDL_Renderer *renderer);
 
     Renderer(const Window &window);
 
@@ -229,12 +309,12 @@ public:
     void set_draw_colour(const SDL_Colour &colour);
 
     // TODO: Consider condensing into one function
-    void copy(const Surface &surface, const SDL_Rect &render_region);
-    void copy(const Surface &surface, const SDL_Rect &copy_region,
+    void copy(Surface &surface, const SDL_Rect &render_region);
+    void copy(Surface &surface, const SDL_Rect &copy_region,
             const SDL_Rect &render_region);
-    void copy(const Surface &surface, const SDL_Rect &render_region,
+    void copy(Surface &surface, const SDL_Rect &render_region,
             const bool &mirrored, const int &theta);
-    void copy(const Surface &surface, const SDL_Rect &copy_region,
+    void copy(Surface &surface, const SDL_Rect &copy_region,
             const SDL_Rect &render_region, const bool &mirrored,
             const int &theta);
 
@@ -243,8 +323,21 @@ public:
 
 };
 
+// Free the memory held by a renderer
+void Renderer::delete_renderer(SDL_Renderer *renderer) {
+    if(renderer == nullptr)
+        return;
+
+#ifdef DEBUG
+    std::cout << "Deleting renderer" << std::endl;
+#endif // DEBUG
+
+    SDL_DestroyRenderer(renderer);
+    renderer = nullptr;
+}
+
 // Finds or loads the texture corresponding to a given surface
-std::shared_ptr<SDL_Texture> Renderer::get_texture(const Surface &surface) {
+std::shared_ptr<SDL_Texture> Renderer::get_texture(Surface &surface) {
     if(textures[surface.hash] == nullptr) {
 
         // Check the surface is valid
@@ -269,7 +362,7 @@ std::shared_ptr<SDL_Texture> Renderer::get_texture(const Surface &surface) {
         // Add the texture to the texture map, and free the memory held by
         // the surface pointer
         textures[surface.hash] = texture;
-        delete surface.data.reset();
+        surface.data.reset();
 
         return texture;
     }
@@ -281,11 +374,15 @@ std::shared_ptr<SDL_Texture> Renderer::get_texture(const Surface &surface) {
 
 Renderer::Renderer(const Window &window) {
 
+#ifdef DEBUG
+    std::cout << "Creating renderer" << std::endl;
+#endif // DEBUG
+
     // Try to create renderer context
     auto flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
     context = std::shared_ptr<SDL_Renderer>(
             SDL_CreateRenderer(window.context.get(), -1, flags),
-            SDL_DestroyRenderer);
+            delete_renderer);
 
     // Check renderer was created properly
     if(context == nullptr) {
@@ -331,13 +428,13 @@ void Renderer::set_draw_colour(const SDL_Colour &colour) {
 }
 
 // Copy an entire surface to a given region of the render context
-void copy(const Surface &surface, const SDL_Rect &render_region) {
+void Renderer::copy(Surface &surface, const SDL_Rect &render_region) {
     auto texture = get_texture(surface);
     SDL_RenderCopy(context.get(), texture.get(), nullptr, &render_region);
 }
 
 // Copy a given region of a surface to a given region of the render context
-void copy(const Surface &surface, const SDL_Rect &copy_region,
+void Renderer::copy(Surface &surface, const SDL_Rect &copy_region,
         const SDL_Rect &render_region) {
 
     auto texture = get_texture(surface);
@@ -346,7 +443,7 @@ void copy(const Surface &surface, const SDL_Rect &copy_region,
 
 // Copy an entire surface to a given region of the render context, optionally
 // mirroring or rotating it
-void copy(const Surface &surface, const SDL_Rect &render_region,
+void Renderer::copy(Surface &surface, const SDL_Rect &render_region,
         const bool &mirrored, const int &theta) {
 
     auto texture = get_texture(surface);
@@ -357,7 +454,7 @@ void copy(const Surface &surface, const SDL_Rect &render_region,
 
 // Copy a given region of a surface to a given region of the render context,
 // optionally mirroring or rotating it
-void copy(const Surface &surface, const SDL_Rect &copy_region,
+void Renderer::copy(Surface &surface, const SDL_Rect &copy_region,
         const SDL_Rect &render_region, const bool &mirrored,
         const int &theta) {
 
