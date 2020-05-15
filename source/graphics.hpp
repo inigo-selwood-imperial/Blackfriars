@@ -90,6 +90,7 @@ struct Surface {
 
     Hash hash;
 
+    Surface();
     Surface(const std::string &file_name);
     Surface(const SDL_Rect &size, const SDL_Colour &colour);
     Surface(const std::string &text, const Font &font,
@@ -115,6 +116,7 @@ Surface::Surface(const std::string &file_name) {
                 "\tSDL error: " << SDL_GetError() << std::endl;
         throw -1;
     }
+
 }
 
 Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
@@ -138,6 +140,7 @@ Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
 
 Surface::Surface(const std::string &text, const Font &font,
         const SDL_Colour &colour) {
+
     auto colour_hash = std::hash<SDL_Colour>{}(colour);
     auto text_hash = std::hash<std::string>{}(text);
     hash = text_hash ^ (font.hash ^ (colour_hash << 1) << 1);
@@ -209,6 +212,10 @@ private:
 
     SDL_Colour clear_colour;
 
+    std::map<Hash, std::shared_ptr<SDL_Texture>> textures;
+
+    std::shared_ptr<SDL_Texture> get_texture(const Surface &surface);
+
 public:
 
     Renderer(const Window &window);
@@ -221,10 +228,56 @@ public:
     void set_clear_colour(const SDL_Colour &colour);
     void set_draw_colour(const SDL_Colour &colour);
 
+    // TODO: Consider condensing into one function
+    void copy(const Surface &surface, const SDL_Rect &render_region);
+    void copy(const Surface &surface, const SDL_Rect &copy_region,
+            const SDL_Rect &render_region);
+    void copy(const Surface &surface, const SDL_Rect &render_region,
+            const bool &mirrored, const int &theta);
+    void copy(const Surface &surface, const SDL_Rect &copy_region,
+            const SDL_Rect &render_region, const bool &mirrored,
+            const int &theta);
+
     void clear();
     void present();
 
 };
+
+// Finds or loads the texture corresponding to a given surface
+std::shared_ptr<SDL_Texture> Renderer::get_texture(const Surface &surface) {
+    if(textures[surface.hash] == nullptr) {
+
+        // Check the surface is valid
+        if(surface.data == nullptr) {
+            std::cerr << "Can't create texture without surface data";
+            throw -1;
+        }
+
+        // Create the texture
+        auto texture = std::shared_ptr<SDL_Texture>(
+            SDL_CreateTextureFromSurface(context.get(), surface.data.get()),
+            SDL_DestroyTexture);
+
+        // Check the texture was created properly
+        if(texture == nullptr) {
+            std::cerr << "Couldn't create texture from surface with hash: " <<
+                    surface.hash << std::endl <<
+                    "\tError message: " << SDL_GetError();
+            throw -1;
+        }
+
+        // Add the texture to the texture map, and free the memory held by
+        // the surface pointer
+        textures[surface.hash] = texture;
+        delete surface.data.reset();
+
+        return texture;
+    }
+
+    // If the texture has already been loaded, return it
+    else
+        return textures[surface.hash];
+}
 
 Renderer::Renderer(const Window &window) {
 
@@ -275,6 +328,43 @@ void Renderer::set_clear_colour(const SDL_Colour &colour) {
 void Renderer::set_draw_colour(const SDL_Colour &colour) {
     SDL_SetRenderDrawColor(context.get(), colour.r, colour.g, colour.b,
             colour.a);
+}
+
+// Copy an entire surface to a given region of the render context
+void copy(const Surface &surface, const SDL_Rect &render_region) {
+    auto texture = get_texture(surface);
+    SDL_RenderCopy(context.get(), texture.get(), nullptr, &render_region);
+}
+
+// Copy a given region of a surface to a given region of the render context
+void copy(const Surface &surface, const SDL_Rect &copy_region,
+        const SDL_Rect &render_region) {
+
+    auto texture = get_texture(surface);
+    SDL_RenderCopy(context.get(), texture.get(), &copy_region, &render_region);
+}
+
+// Copy an entire surface to a given region of the render context, optionally
+// mirroring or rotating it
+void copy(const Surface &surface, const SDL_Rect &render_region,
+        const bool &mirrored, const int &theta) {
+
+    auto texture = get_texture(surface);
+    auto flip_flag = mirrored ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+    SDL_RenderCopyEx(context.get(), texture.get(), nullptr, &render_region,
+            theta, nullptr, flip_flag);
+}
+
+// Copy a given region of a surface to a given region of the render context,
+// optionally mirroring or rotating it
+void copy(const Surface &surface, const SDL_Rect &copy_region,
+        const SDL_Rect &render_region, const bool &mirrored,
+        const int &theta) {
+
+    auto texture = get_texture(surface);
+    auto flip_flag = mirrored ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+    SDL_RenderCopyEx(context.get(), texture.get(), &copy_region, &render_region,
+            theta, nullptr, flip_flag);
 }
 
 // Clear the render context
