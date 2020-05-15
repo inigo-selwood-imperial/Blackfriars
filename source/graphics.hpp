@@ -115,6 +115,8 @@ struct Surface {
 
     Hash hash;
 
+    SDL_Rect size;
+
     static void delete_surface(SDL_Surface *surface);
 
     Surface() {}
@@ -161,6 +163,7 @@ Surface::Surface(const std::string &file_name) {
         throw -1;
     }
 
+    size = {0, 0, data->w, data->h};
 }
 
 Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
@@ -184,6 +187,8 @@ Surface::Surface(const SDL_Rect &size, const SDL_Colour &colour) {
     // Fill the surface with a given colour
     SDL_FillRect(data.get(), nullptr, SDL_MapRGBA(data.get()->format,
             colour.r, colour.g, colour.b, colour.a));
+
+    size = {0, 0, data->w, data->h};
 }
 
 Surface::Surface(const std::string &text, const Font &font,
@@ -207,8 +212,9 @@ Surface::Surface(const std::string &text, const Font &font,
                 "\tSDL error: " << SDL_GetError() << std::endl;
         throw -1;
     }
-}
 
+    size = {0, 0, data->w, data->h};
+}
 
 // ********************************************************************** Window
 
