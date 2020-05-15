@@ -12,7 +12,7 @@ class Button {
 
 public:
 
-    Texture texture;
+    Surface surface;
 
     SDL_Point copy_origin_normal;
     SDL_Point copy_origin_pressed;
@@ -33,7 +33,7 @@ public:
         SDL_Rect copy_region = {copy_origin.x, copy_origin.y,
                 render_region.w, render_region.h};
 
-        renderer.copy(texture, copy_region, render_region);
+        renderer.copy(surface, copy_region, render_region);
     }
 
 };
@@ -54,7 +54,7 @@ private:
 
 public:
 
-    void start(Renderer &renderer);
+    Toolbar();
 
     void mouse_pressed(const SDL_MouseButtonEvent &button_event);
     std::string mouse_released(const SDL_MouseButtonEvent &button_event);
@@ -63,7 +63,7 @@ public:
 
 };
 
-void Toolbar::start(Renderer &renderer) {
+Toolbar::Toolbar() {
     std::vector<std::reference_wrapper<Button>> buttons = {
         copy_button,
         cut_button,
@@ -75,11 +75,10 @@ void Toolbar::start(Renderer &renderer) {
     };
 
     Surface surface("buttons.png");
-    auto texture = renderer.create_texture(surface);
 
     int index = 0;
     for(Button &button : buttons) {
-        button.texture = texture;
+        button.surface = surface;
 
         button.copy_origin_normal = {0, index * 32};
         button.copy_origin_pressed = {32, index * 32};
@@ -122,7 +121,7 @@ std::string Toolbar::mouse_released(const SDL_MouseButtonEvent &button_event) {
     };
 
     std::string button_pressed = "";
-    for(std::pair<std::string, Button> pair : buttons) {
+    for(std::pair<std::string, Button &>pair : buttons) {
         pair.second.pressed = false;
         if(SDL_PointInRect(&point_released, &pair.second.render_region)
                 && pair.second.pressed)
@@ -150,6 +149,26 @@ class Schematic {
 
 // ********************************************************************* Textbox
 
+class Label {
+
+private:
+
+    Surface surface;
+
+public:
+
+    void set_text(const std::string &text, const Font &font,
+            const SDL_Colour colour = {0, 0, 0, 0}) {
+
+        surface = Surface(text, font, colour);
+    }
+
+    void render(Renderer &renderer) {
+        // renderer.copy(texture, )
+    }
+
+};
+
 class Textbox {
 
 };
@@ -168,10 +187,7 @@ private:
 
     // Textbox status_textbox;
 
-    void start(Renderer &renderer) override {
-        toolbar.start(renderer);
-    }
-
+    // virtual void start() {}
     // virtual void stop() {}
 
     // virtual void key_pressed(const SDL_Keycode &keycode) {}
