@@ -1,10 +1,10 @@
 #pragma once
 
-#include "graphics.hpp"
-
 class State {
 
 public:
+
+    typedef std::shared_ptr<State> Pointer;
 
     virtual void start() {}
     virtual void stop() {}
@@ -19,5 +19,7 @@ public:
     virtual void wheel_moved(const SDL_MouseWheelEvent &wheel_event) {}
 
     virtual void render(Renderer &renderer) {}
+
+    virtual void update(const long &ticks) {}
 
 };
