@@ -29,6 +29,7 @@
 
 #include "nodes/button.hpp"
 #include "nodes/colour_rectangle.hpp"
+#include "nodes/grid.hpp"
 #include "nodes/label.hpp"
 
 #include "state.hpp"
