@@ -4,8 +4,6 @@ class State {
 
 public:
 
-    typedef std::shared_ptr<State> Pointer;
-
     virtual void start() {}
     virtual void stop() {}
 

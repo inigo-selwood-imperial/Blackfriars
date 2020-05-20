@@ -13,7 +13,7 @@ std::shared_ptr<SDL_Surface> load_image(const std::string &name) {
 
     else {
         std::string path = SDL_GetBasePath();
-        path += "\\resources\\" + name + ".png";
+        path += "..\\resources\\" + name + ".png";
 
 #ifdef DEBUG
         std::cout << "Loading image: " << path << std::endl;
@@ -43,7 +43,7 @@ std::shared_ptr<TTF_Font> load_font(const std::string &name,
 
     else {
         std::string path = SDL_GetBasePath();
-        path += "\\resources\\" + name + ".ttf";
+        path += "..\\resources\\" + name + ".ttf";
 
 #ifdef DEBUG
         std::cout << "Loading font: " << path << std::endl;

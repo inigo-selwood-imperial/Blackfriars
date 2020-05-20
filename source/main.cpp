@@ -11,7 +11,9 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 
-#define DEBUG
+// #define DEBUG
+
+// TODO: Split the includes into their own condensed headers
 
 #include "hash.hpp"
 
@@ -26,11 +28,12 @@
 #include "node.hpp"
 
 #include "nodes/button.hpp"
-#include "nodes/label.hpp"
-#include "nodes/textbox.hpp"
 #include "nodes/colour_rectangle.hpp"
+#include "nodes/label.hpp"
 
 #include "state.hpp"
+
+#include "states/test_state.hpp"
 
 #include "application.hpp"
 
@@ -38,11 +41,11 @@ int main(int argument_count, char *argument_vector[]) {
     try {
         Resources::start();
 
-        Window window("Blackfriars", 1536, 768);
-        Renderer renderer(window, 3);
+        Window window("Blackfriars", 768, 512);
+        Renderer renderer(window);
 
         Application application(window, renderer);
-        application.load_state<State>();
+        application.load_state<TestState>();
         application.run();
     }
     catch(...) {

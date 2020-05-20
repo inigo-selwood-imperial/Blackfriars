@@ -1,5 +1,11 @@
 #pragma once
 
+// TODO: Move elsewhere
+std::ostream &operator<<(std::ostream &stream, const SDL_Rect &region) {
+    return stream << "(" << region.x << ", " << region.y << ", " << region.w <<
+            ", " << region.h << ")";
+}
+
 class Renderer {
 
 private:
@@ -18,9 +24,9 @@ public:
 
     unsigned int scale;
 
-    Renderer(Window &window, const unsigned int &scale);
+    Renderer(Window &window, const unsigned int scale);
 
-    void copy(Surface &surface, const SDL_Rect &render_region);
+    void copy(Surface &surface, const SDL_Point &render_origin);
 
     void clear();
     void present();
@@ -49,7 +55,7 @@ std::shared_ptr<SDL_Texture> Renderer::get_texture(Surface &surface) {
     return texture;
 }
 
-Renderer::Renderer(Window &window, const unsigned int &scale) {
+Renderer::Renderer(Window &window, const unsigned int scale = 1) {
 
 #ifdef DEBUG
     std::cout << "Creating renderer" << std::endl;
@@ -78,10 +84,26 @@ Renderer::Renderer(Window &window, const unsigned int &scale) {
     this->scale = scale;
 }
 
-void Renderer::copy(Surface &surface, const SDL_Rect &render_region) {
+void Renderer::copy(Surface &surface, const SDL_Point &render_origin) {
     auto texture = get_texture(surface);
     auto flip_flags = surface.mirrored ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-    SDL_RenderCopyEx(context.get(), texture.get(), &surface.size,
+
+    SDL_Rect copy_region = {
+        surface.copy_origin.x,
+        surface.copy_origin.y,
+        surface.size.w,
+        surface.size.h
+    };
+    SDL_Rect render_region = {
+        render_origin.x,
+        render_origin.y,
+        surface.size.w,
+        surface.size.h
+    };
+
+    // std::cout << copy_region << ", " << render_region << std::endl;
+
+    SDL_RenderCopyEx(context.get(), texture.get(), &copy_region,
             &render_region, surface.theta, nullptr, flip_flags);
 }
 

@@ -8,14 +8,19 @@ public:
 
     SDL_Rect size;
 
+    SDL_Point copy_origin;
+
     bool mirrored;
 
     double theta;
 
     Hash hash;
 
+    Surface operator()(const SDL_Rect &region);
+
     Surface();
     Surface(const std::string &name);
+    Surface(const Surface &surface, const SDL_Rect &region);
     Surface(const std::string &text, const Font &font,
             const SDL_Colour &colour);
 
@@ -26,10 +31,17 @@ public:
 
 };
 
+Surface Surface::operator()(const SDL_Rect &region) {
+    return Surface(*this, region);
+}
+
 Surface::Surface() {
     size = {0, 0, 0, 0};
+    copy_origin = {0, 0};
+
     mirrored = false;
     theta = 0;
+
     hash = 0;
 }
 
@@ -38,6 +50,12 @@ Surface::Surface(const std::string &name) : Surface() {
 
     size = {0, 0, data->w, data->h};
     update_hash();
+}
+
+Surface::Surface(const Surface &surface, const SDL_Rect &region) : Surface() {
+    data = surface.data;
+    size = {0, 0, region.w, region.h};
+    copy_origin = {region.x, region.y};
 }
 
 Surface::Surface(const std::string &text, const Font &font,

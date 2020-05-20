@@ -8,7 +8,7 @@ public:
 
     Renderer &renderer;
 
-    State::Pointer state;
+    std::shared_ptr<State> state;
 
     long previous_ticks;
 

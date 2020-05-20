@@ -8,21 +8,18 @@ public:
 
     Surface pressed_surface;
 
-    bool toggle;
+    SDL_Point render_origin;
 
     bool pressed;
 
-    Button(const Surface &normal_surface, const Surface &pressed_surface) {
-        this->normal_surface = normal_surface;
-        this->pressed_surface = pressed_surface;
-
-        toggle = false;
+    Button() {
+        render_origin = {0, 0};
         pressed = false;
     }
 
     void render(Renderer &renderer) override {
         Surface &surface = pressed ? pressed_surface : normal_surface;
-        renderer.copy(surface, render_region);
+        renderer.copy(surface, render_origin);
     }
 
 };
