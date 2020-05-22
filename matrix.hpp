@@ -1,5 +1,6 @@
 #pragma once
 
+// TODO: Implement a custom iterator
 class Matrix {
 
 private:
@@ -13,8 +14,8 @@ public:
     static double dot_product(const Matrix &one, const Matrix &two);
     static Matrix cross_product(const Matrix &one, const Matrix &two);
 
-    static Matrix operator*(const Matrix &one, const double &factor);
-    static Matrix operator/(const Matrix &one, const double &factor);
+    static Matrix operator*(const Matrix &matrix, const double &factor);
+    static Matrix operator/(const Matrix &matrix, const double &factor);
     static Matrix operator+(const Matrix &one, const Matrix &two);
 
     static bool operator!=(const Matrix &one, const Matrix &two);
@@ -45,14 +46,22 @@ public:
 
 };
 
-// Prints the matrix to a stream
-std::ostream &Matrix::operator<<(std::ostream &stream, const Matrix &matrix) {
+// Prints an matrix to a stream
+std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {
 
+}
+
+// Prints an index to a stream
+std::ostream &operator<<(std::ostream &stream, const std::array<unsigned int, 2> &index) {
+    return stream << "(" << index[0] << ", " << index[1] << ")";
 }
 
 // Returns the identity matrix of a given size
 Matrix Matrix::identity_matrix(const unsigned int &size) {
-
+    Matrix matrix(size, size);
+    for(unsigned int index = 0; index < size; index += 1)
+        matrix(index, index) = 1;
+    return matrix;
 }
 
 // Returns the dot product of two matrices
@@ -66,33 +75,65 @@ Matrix Matrix::cross_product(const Matrix &one, const Matrix &two) {
 }
 
 // Returns a matrix multiplied by a scalar factor
-Matrix Matrix::operator*(const Matrix &one, const double &factor) {
-
+Matrix Matrix::operator*(const Matrix &matrix, const double &factor) {
+    const auto size = matrix.size();
+    Matrix new_matrix = matrix;
+    for(unsigned int column = 0; column < size[0]; column += 1) {
+        for(unsigned int row = 0; row < size[1]; row += 1)
+            new_matrix(column, row) *= factor;
+    }
+    return new_matrix;
 }
 
 // Returns a matrix divided by a scalar factor
-Matrix Matrix::operator/(const Matrix &one, const double &factor) {
-
+Matrix Matrix::operator/(const Matrix &matrix, const double &factor) {
+    return matrix * (1 / factor);
 }
 
 // Returns the sum of two matrices
 Matrix Matrix::operator+(const Matrix &one, const Matrix &two) {
+    if(one.size() != two.size()) {
+        std::cerr << "Can't add two matrices of different sizes" << std::endl;
+        throw -1;
+    }
 
+    const auto size = one.size();
+    Matrix new_matrix = one;
+    for(unsigned int column = 0; column < size[0]; column += 1) {
+        for(unsigned int row = 0; row < size[1]; row += 1)
+            new_matrix(column, row) += two(column, row);
+    }
+    return new_matrix;
 }
 
 // Returns true if the two matrices aren't equal
 bool Matrix::operator!=(const Matrix &one, const Matrix &two) {
-
+    return (one == two) == false;
 }
 
 // Returns true if the matrices are equal
 bool Matrix::operator==(const Matrix &one, const Matrix &two) {
+    if(one.size() != two.size())
+        return false;
 
+    const auto epsilon = std::numeric_limits<double>::epsilon();
+    for(unsigned int column = 0; column < size[0]; column += 1) {
+        for(unsigned int row = 0; row < size[1]; row += 1) {
+            if(std::fabs(one(column, row) - two(column, row)) >= epsilon)
+                return false;
+        }
+    }
+
+    return true;
 }
 
 // Returns the value at a given column and row index
 double &Matrix::operator()(const unsigned int &column,
         const unsigned int &row) {
+
+    if(column >= values.size() || row >= values[column].size())
+        return 0;
+
 
 }
 
