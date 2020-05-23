@@ -1,5 +1,11 @@
 #pragma once
 
+#include <array>
+#include <ostream>
+#include <vector>
+
+#include <cmath>
+
 // TODO: Implement a custom iterator
 class Matrix {
 
@@ -14,14 +20,7 @@ public:
     static Matrix cross_product(const Matrix &one, const Matrix &two);
     static Matrix power(const Matrix &matrix, const unsigned int &exponent);
 
-    static Matrix operator*(const Matrix &matrix, const double &factor);
-    static Matrix operator/(const Matrix &matrix, const double &factor);
-    static Matrix operator+(const Matrix &one, const Matrix &two);
-
-    static bool operator!=(const Matrix &one, const Matrix &two);
-    static bool operator==(const Matrix &one, const Matrix &two);
-
-    double &operator[](const unsigned int &column, const unsigned int &row);
+    double &operator()(const unsigned int &column, const unsigned int &row);
 
     Matrix &operator*=(const double &factor);
     Matrix &operator/=(const double &factor);
@@ -29,17 +28,14 @@ public:
 
     Matrix();
     Matrix(const std::vector<std::vector<double>> &values);
-    Matrix(const unsigned int &width, const unsigned int &height);
+    Matrix(const unsigned int &columns, const unsigned int &rows);
 
-    void resize(const unsigned int &width, const unsigned int &height);
+    void resize(const unsigned int &columns, const unsigned int &rows);
     void clear();
 
-    double derivative() const;
+    double determinant() const;
     Matrix inverse() const;
     Matrix transpose() const;
-
-    unsigned int height() const;
-    unsigned int width() const;
 
     Size size();
     unsigned int volume() const;
@@ -48,140 +44,151 @@ private:
 
     std::vector<double> values;
 
+    unsigned int columns;
     unsigned int rows;
 
-    unsigned int columns;
-
-    static Index index(const unsigned int &offset);
-    static unsigned int offset(const Index &index);
-
+    Index index(const unsigned int &offset);
+    unsigned int offset(const Index &index);
+    unsigned int offset(const unsigned int &column, const unsigned int &row);
 };
 
 // Prints an matrix to a stream
-std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {}
-
-// Prints an index to a stream
-std::ostream &operator<<(std::ostream &stream, const std::array<unsigned int, 2> &index) {}
-
-// Returns the identity matrix of a given size
-Matrix Matrix::identity_matrix(const unsigned int &size) {
-    Matrix matrix(size, size);
-    for(unsigned int offset = 0; offset < size; offset += 1)
-        matrix[offset, offset] = 1;
-    return matrix;
+std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {
+    return stream;
 }
 
-// Returns the dot product of two matrices
-double Matrix::dot_product(const Matrix &one, const Matrix &two) {}
+// Prints an index to a stream
+std::ostream &operator<<(std::ostream &stream,
+        const std::array<unsigned int, 2> &index) {
 
-// Returns the cross product of two matrices
-Matrix Matrix::cross_product(const Matrix &one, const Matrix &two) {}
-
-// Returns the result of a matrix to a given power
-Matrix Matrix::power(const Matrix &matrix, const unsigned int &exponent);
+    return stream;
+}
 
 // Returns a matrix multiplied by a scalar factor
-Matrix Matrix::operator*(const Matrix &matrix, const double &factor) {
-    Matrix result = matrix;
-    return matrix *= factor;
+Matrix operator*(const Matrix &matrix, const double &factor) {
+    return Matrix();
 }
 
 // Returns a matrix divided by a scalar factor
-Matrix Matrix::operator/(const Matrix &matrix, const double &factor) {
-    Matrix result = matrix;
-    return matrix /= factor;
+Matrix operator/(const Matrix &matrix, const double &factor) {
+    return Matrix();
 }
 
 // Returns the sum of two matrices
-Matrix Matrix::operator+(const Matrix &one, const Matrix &two) {
-    Matrix result = one;
-    return result + two;
+Matrix operator+(const Matrix &one, const Matrix &two) {
+    return Matrix();
 }
 
 // Returns true if the two matrices aren't equal
-bool Matrix::operator!=(const Matrix &one, const Matrix &two) {
-    return (one == two) == false;
+bool operator!=(const Matrix &one, const Matrix &two) {
+    return false;
 }
 
 // Returns true if the matrices are equal
-bool Matrix::operator==(const Matrix &one, const Matrix &two) {
-    if(one.size() != two.size())
-        return false;
+bool operator==(const Matrix &one, const Matrix &two) {
+    return false;
+}
 
-    const auto epsilon = std::numeric_limits<double>::epsilon;
-    for(unsigned int index = 0; index < result.volume(); result += 1) {
-        if(std::fabs(one.values[index], two.values[index]) >= epsilon)
-            return false;
-    }
-    return true;
+// Returns the identity matrix of a given size
+Matrix Matrix::identity_matrix(const unsigned int &size) {
+    return Matrix();
+}
+
+// Returns the dot product of two matrices
+double Matrix::dot_product(const Matrix &one, const Matrix &two) {
+    return 0;
+}
+
+// Returns the cross product of two matrices
+Matrix Matrix::cross_product(const Matrix &one, const Matrix &two) {
+    return Matrix();
+}
+
+// Returns the result of a matrix to a given power
+Matrix Matrix::power(const Matrix &matrix, const unsigned int &exponent) {
+    return Matrix();
 }
 
 // Returns the value at a given column and row index
-double &Matrix::operator[](const unsigned int &column,
+double &Matrix::operator()(const unsigned int &column,
         const unsigned int &row) {
 
-    return values[offset({column, row})];
+    throw -1;
 }
 
 // Multiplies the matrix by a scalar factor
 Matrix &Matrix::operator*=(const double &factor) {
-    for(auto &value : values)
-        value *= factor;
-    return *this;
+    throw -1;
 }
 
 // Divides the matrix by a scalar factor
 Matrix &Matrix::operator/=(const double &factor) {
-    for(auto &value : values)
-        value /= factor;
-    return *this;
+    throw -1;
 }
 
 // Adds a matrix to this matrix
 Matrix &Matrix::operator+=(const Matrix &matrix) {
-    if(size() != matrix.size())
-        throw -1;
-
-    for(unsigned int index = 0; index < result.volume(); result += 1)
-        values[index] += two.values[index];
-    return *this;
+    throw -1;
 }
 
-Matrix::Matrix() {}
+Matrix::Matrix() {
+    columns = 0;
+    rows = 0;
+}
 
 Matrix::Matrix(const std::vector<std::vector<double>> &values) {}
 
-Matrix::Matrix(const unsigned int &width, const unsigned int &height) {}
+Matrix::Matrix(const unsigned int &columns, const unsigned int &rows) {}
 
 // Resizes the matrix, copying any overlapping data into the resized matrix
-void Matrix::resize(const unsigned int &width, const unsigned int &height) {}
+void Matrix::resize(const unsigned int &columns, const unsigned int &rows) {}
 
 // Clear the values in the matrix, leaving its size intact
-void Matrix::clear() {}
+void Matrix::clear() {
+    for(auto &value : values)
+        value = 0;
+}
 
-// Returns the derivative of the matrix
-double Matrix::derivative() const {}
+// Returns the determinant of the matrix
+double Matrix::determinant() const {
+    return 0;
+}
 
 // Returns the inverse of the matrix
-Matrix Matrix::inverse() const {}
+Matrix Matrix::inverse() const {
+    return Matrix();
+}
 
 // Returns the transpose of the matrix
-Matrix Matrix::transpose() const {}
+Matrix Matrix::transpose() const {
+    return Matrix();
+}
 
-// Returns the height of the matrix
-unsigned int Matrix::height() const {}
+// Returns the size of the matrix, in the format {columns, rows}
+Matrix::Size Matrix::size() {
+    return {columns, rows};
+}
 
-// Returns the width of the matrix
-unsigned int Matrix::width() const {}
-
-// Returns the size of the matrix, in the format {width, height}
-std::array<unsigned int, 2> Matrix::size() {}
-
-// Returns the volume of the matrix (width * height)
-unsigned int Matrix::volume() const {}
+// Returns the volume of the matrix
+unsigned int Matrix::volume() const {
+    return columns * rows;
+}
 
 // Returns the index corresponding to a row-major order offset
-Index Matrix::index(const unsigned int &offset) {}
+Matrix::Index Matrix::index(const unsigned int &offset) {
+    unsigned int column = offset / columns;
+    unsigned int row = offset % rows;
+    return {column, row};
+}
+
+// Returns the row=major order offset of a given column, row index
+unsigned int Matrix::offset(const unsigned int &column,
+        const unsigned int &row) {
+
+    return offset({column, row});
+}
 
 // Returns the row-major order offset of a given index
-unsigned int Matrix::offset(const Index &index) {}
+unsigned int Matrix::offset(const Index &index) {
+    return index[0] * columns + index[1];
+}
