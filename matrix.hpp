@@ -58,6 +58,17 @@ private:
 
 // Prints an matrix to a stream
 std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {
+    const auto size = matrix.size();
+    for(unsigned int row = 0; row < size[1]; row += 1) {
+        stream << "[";
+        for(unsigned int column = 0; column < size[0]; column += 1) {
+            stream << matrix(column, row);
+            if(column + 1 < size[0])
+                stream << ", ";
+        }
+        stream << "]" << std::endl;
+    }
+
     return stream;
 }
 
@@ -65,7 +76,7 @@ std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {
 std::ostream &operator<<(std::ostream &stream,
         const std::array<unsigned int, 2> &index) {
 
-    return stream;
+    return stream << "(" << index[0] << ", " << index[1] << ")";
 }
 
 // Returns a matrix multiplied by a scalar factor
@@ -183,12 +194,18 @@ Matrix::Matrix(const unsigned int &columns, const unsigned int &rows) {
 
 // Resizes the matrix, copying any overlapping data into the resized matrix
 void Matrix::resize(const unsigned int &columns, const unsigned int &rows) {
+    this->columns = columns;
+    this->rows = rows;
+
+    if(values.empty()) {
+        values.resize(columns * rows);
+        return;
+    }
+
     Matrix temporary = *this;
 
     values.clear();
     values.resize(columns * rows);
-    this->columns = columns;
-    this->rows = rows;
 
     unsigned int column_bound = std::min(columns, temporary.columns);
     unsigned int row_bound = std::min(rows, temporary.rows);
@@ -206,7 +223,59 @@ void Matrix::clear() {
 
 // Returns the determinant of the matrix
 double Matrix::determinant() const {
-    return 0;
+    if(columns != rows)
+        throw -1;
+
+    const auto size = columns;
+
+    Matrix lower_matrix(columns, rows);
+    Matrix upper_matrix(columns, rows);
+
+    std::array<unsigned int, 2> index;
+    for(index[0] = 0; index[0] < size; index[0] += 1) {
+
+        for(index[1] = 0; index[1] < size; index[1] += 1) {
+            if(index[1] < index[0])
+                lower_matrix(index[1], index[0]) = 0;
+
+            else {
+                lower_matrix(index[1], index[0]) = (*this)(index[1], index[0]);
+                for(unsigned int offset = 0; offset < index[0]; offset += 1) {
+                    lower_matrix(index[1], index[0]) =
+                            lower_matrix(index[1], index[0]) -
+                            lower_matrix(index[1], offset) *
+                            upper_matrix(offset, index[0]);
+                }
+            }
+        }
+
+        for(index[1] = 0; index[1] < size; index[1] += 1) {
+            if(index[1] < index[0])
+                upper_matrix(index[0], index[1]) = 0;
+
+            else if(index[1] == index[0])
+                upper_matrix(index[0], index[1]) = 1;
+
+            else {
+                upper_matrix(index[0], index[1]) = (*this)(index[0], index[1]) /
+                        lower_matrix(index[0], index[0]);
+                for(unsigned int offset = 0; offset < index[0]; offset += 1) {
+                    upper_matrix(index[0], index[1]) =
+                            upper_matrix(index[0], index[1]) -
+                            ((lower_matrix(index[0], offset) *
+                            upper_matrix(offset, index[1])) /
+                            lower_matrix(index[0], index[0]));
+                }
+            }
+        }
+    }
+
+    double determinant = 1;
+    for(unsigned int index = 0; index < size; index += 1) {
+        determinant *= lower_matrix(index, index);
+        determinant *= upper_matrix(index, index);
+    }
+    return determinant;
 }
 
 // Returns the inverse of the matrix
