@@ -1,66 +1,50 @@
 #pragma once
 
-// Returns true if the character is any number 0-9
-static bool is_integer(const char &character) {
-    return character >= '0' && character <= '9';
-}
+class Component {
 
-// Returns an integer at the current buffer position
-static unsigned int parse_integer(ParseBuffer &buffer) {
-    std::string value;
-    while(is_integer(buffer.get_current()))
-        value += buffer.skip_current();
+    enum Type {
+        VOLTAGE_SOURCE,
+        CURRENT_SOURCE,
 
-    if(value.empty())
-        throw -1;
+        DIODE,
+        TRANSISTOR,
 
-    try {
-        return std::stoi(value);
-    }
-    catch(...) {
-        throw -1;
-    }
-}
+        RESISTOR,
+        CAPACITOR,
+        INDUCTOR
+    };
 
-// Returns a multiplier value (the power of 10 which the suffix raises it to)
-static int parse_multiplier(ParseBuffer &buffer) {
-    switch(buffer.get_current()) {
-        case 'p':
-            return -12;
-        case 'n':
-            return -9;
-        case 'u':
-            return -6;
-        case 'm':
-            return -3;
-        case 'k':
-            return 3;
-        case 'G':
-            return 9;
-    }
+    typedef std::shared_ptr<Term> Pointer;
 
-    if(buffer.skip_string("Meg").empty() == false)
-        return 6;
+    const Type type;
 
-    throw -1;
-}
+    template <typename DerivedType>
+    static std::shared_ptr<DerivedType> cast(const Pointer &pointer);
 
-// Returns a value parsed from the current buffer position
-static double parse_value(ParseBuffer &buffer) {
+    static Term::Pointer parse(ParseBuffer &buffer);
 
-}
+    Term(const Type &type) : type(type) {}
 
-// Parses a node name in the format "Nxxx", where xxx is an integer
-static unsigned int parse_node(ParseBuffer &buffer) {
-    if(buffer.skip_character('N') == false)
-        throw -1;
+};
 
-    return parse_integer(buffer);
-}
+template <typename DerivedType, Component::Type type>
+class ProxyComponent : public Component {
 
-static double parse_double(ParseBuffer &buffer) {
+    typedef std::shared_ptr<DerivedType> Pointer;
 
-}
+    ProxyTerm() : Term(type) {}
+
+};
+
+class CurrentSource : public ProxyComponent<CurrentSource, CURRENT_SOURCE> {};
+class VoltageSource : public ProxyComponent<VoltageSource, VOLTAGE_SOURCE> {};
+
+class Diode : public ProxyComponent<Diode, DIODE> {};
+class Transistor : public ProxyComponent<Transistor, TRANSISTOR> {};
+
+class Capacitor : public ProxyComponent<Capacitor, CAPACITOR> {};
+class Inductor : public ProxyComponent<Inductor, INDUCTOR> {};
+class Resistor : public ProxyComponent<Resistor, RESISTOR> {};
 
 CurrentSource::Pointer CurrentSource::parse(ParseBuffer &buffer);
 VoltageSource::Pointer VoltageSource::parse(ParseBuffer &buffer);
