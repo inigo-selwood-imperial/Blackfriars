@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 // Flags for skipping whitespace
 enum Whitespace {
     COMMENTS    = 1,
