@@ -177,7 +177,7 @@ std::string ParseBuffer::skip_whitespace(const int &flags = 0xF) {
                 (get_current() == '\n' && (flags & NEWLINES)))
             result += skip_current();
 
-        else if(get_current() == '#') {
+        else if(get_current() == '*') {
             while(true) {
                 if(get_current() == '\n' || end_reached())
                     break;
