@@ -12,9 +12,10 @@ enum Whitespace {
 // about line, column, and indentation
 class ParseBuffer {
 
+private:
+
     std::string text;
 
-    std::vector<unsigned int> indentation_levels;
     std::vector<unsigned int> line_start_indices;
 
     unsigned int index;
@@ -216,18 +217,4 @@ void ParseBuffer::set_position(const Position &position) {
     index = position.index;
     line = position.line;
     column = position.column;
-}
-
-// Get the change in indentation level between the line specified and the next
-// line
-// By default, when line < 0, the current and next lines are the ones considered
-int ParseBuffer::indentation_delta(int line = -1) const {
-    if(line < 0)
-        line = this->line;
-
-    if((unsigned int)line == line_start_indices.size())
-        return 0;
-
-    return indentation_levels[line + 1] - indentation_levels[line];
-
 }
