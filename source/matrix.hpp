@@ -16,7 +16,6 @@ public:
 
     static Matrix identity(const unsigned int &size);
 
-    static Matrix cross_product(const Matrix &one, const Matrix &two);
     static Matrix power(const Matrix &matrix, const unsigned int &exponent);
 
     double &operator()(const unsigned int &column, const unsigned int &row);
@@ -134,11 +133,6 @@ Matrix Matrix::identity(const unsigned int &size) {
     for(unsigned int index = 0; index < size; index += 1)
         matrix(index, index) = 1;
     return matrix;
-}
-
-// Returns the cross product of two matrices
-Matrix Matrix::cross_product(const Matrix &one, const Matrix &two) {
-    return Matrix();
 }
 
 // Returns the result of a matrix to a given power
