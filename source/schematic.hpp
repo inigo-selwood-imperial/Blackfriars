@@ -14,8 +14,6 @@ private:
     Matrix d_matrix();
     Matrix g_matrix();
 
-    Matrix y_matrix();
-
     Matrix x_matrix();
 
     Matrix j_matrix();
@@ -58,22 +56,34 @@ node (in the second dimension).
     then the element (K, J) in the matrix is -1
 - Otherwise, all elements of the matrix are 0
 */
-Matrix Schematic::b_matrix() {}
+Matrix Schematic::b_matrix() {
+    Matrix result(_voltage_source_count, _node_count);
+    for(const auto &source : _voltage_sources) {
+        result(source->nodes[0], source.number) = 1;
+        result(source->nodes[1], source.number) = -1;
+    }
+    return result;
+}
 
 /*
 The C matrix(size M * N) is the transpose of the B matrix
 NOTE: This is not the case when dependent sources are present!
 */
-Matrix Schematic::c_matrix() {}
+Matrix Schematic::c_matrix() {
+    return b_matrix().transpose();
+}
 
 /*
 The D matrix (size M * M) is just an empty (zero-filled) matrix
 NOTE: As with the C matrix, this is not the case when dependent voltage sources
 are involved
 */
-Matrix Schematic::d_matrix() {}
+Matrix Schematic::d_matrix() {
+    return Matrix(_voltage_source_count, _voltage_source_count);
+}
 
-/* The G matrix (size N * N) is formed in two steps:
+/*
+The G matrix (size N * N) is formed in two steps:
 
 (1) Each element along the diagonal of the matrix is the sum of the conductance
     of each element connected to the corresponding node. So, the first diagonal
@@ -87,17 +97,22 @@ Matrix Schematic::d_matrix() {}
 Matrix Schematic::g_matrix() {}
 
 /*
-The X matrix (size M + N) holds the unknown quantities, and is a combination of
+The X matrix (size 1 * (M + N)) holds the unknown quantities, and is a combination of
 2 smaller matrices V and J:
 
     X = | V |
         | J |
 
 - The V matrix (size 1 * N) holds the unknown voltages
-- The J matrix (size ! * M) holds the unknown currents through the voltage
+- The J matrix (size 1 * M) holds the unknown currents through the voltage
     sources
 */
-Matrix Schematic::x_matrix() {}
+Matrix Schematic::x_matrix() {
+    return Matrix() = {
+        {v_matrix()},
+        {j_matrix()}
+    };
+}
 
 /*
 The J matrix (size 1 * M) has one entry for the current through each voltage
@@ -109,7 +124,9 @@ matrix would look like:
         | ...  |
         | iV_M |
 */
-Matrix Schematic::j_matrix() {}
+Matrix Schematic::j_matrix() {
+    return Matrix(_voltage_source_count, 1);
+}
 
 /*
 The V matrix (size 1 * N) is formed of the node voltages. Each element in V
@@ -123,7 +140,9 @@ For a circuit of N nodes, V would look like:
         | ... |
         | V_N |
 */
-Matrix Schematic::v_matrix() {}
+Matrix Schematic::v_matrix() {
+    return Matrix(1, _node_count);
+}
 
 /*
 The Z matrix (size 1 * (M + N)) holds the independent voltage and current
@@ -137,16 +156,30 @@ sources, and is again a combination of 2 smaller matrices (I and E).
     independent current sources)
 - The E matrix (size 1 * M) holds the values of the independent voltage sources
 */
-Matrix Schematic::z_matrix() {}
+Matrix Schematic::z_matrix() {
+    return Matrix() = {
+        {i_matrix()},
+        {e_matrix()}
+    };
+}
 
 /*
 The E matrix (size 1 * M) contains the values of the independent voltage sources
 */
-Matrix Schematic::e_matrix() {}
+Matrix Schematic::e_matrix() {
+    Matrix result(1, _voltage_source_count);
+    for(const auto &source : _voltage_sources)
+        result(0, source->index) = source->value;
+    return result;
+}
 
 /*
 The I matrix (size 1 * N) contains the sum of currents through the passive
 elements into the corresponding node. If there are no current sources into the
 connected node, the value should be zero.
 */
-Matrix Schematic::i_matrix() {}
+Matrix Schematic::i_matrix() {
+    Matrix result(1, _node_count);
+    for(const auto &source : _current_sources)
+        result(source->index, 0) += source->value;
+}
