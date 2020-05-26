@@ -25,6 +25,8 @@ public:
     Complex(const double &real_part);
     Complex(const double &real_part, const double &imaginary_part);
 
+    Complex power(const int &power);
+
     double magnitude() const;
     double theta() const;
 
