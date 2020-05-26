@@ -25,7 +25,6 @@ public:
     Matrix &operator*=(const double &factor);
     Matrix &operator*=(const Matrix &matrix);
     Matrix &operator/=(const double &factor);
-    Matrix &operator/=(const Matrix &matrix);
     Matrix &operator+=(const Matrix &matrix);
 
     Matrix();
@@ -185,11 +184,6 @@ Matrix &Matrix::operator/=(const double &factor) {
     for(auto &value : _values)
         value /= factor;
     return *this;
-}
-
-// Divides the matrix by another matrix
-Matrix &Matrix::operator/=(const Matrix &matrix) {
-    throw -1;
 }
 
 // Adds a matrix to this matrix
