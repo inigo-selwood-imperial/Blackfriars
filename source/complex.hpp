@@ -36,12 +36,39 @@ public:
 
 // Prints a complex number to the stream in the format: "a +/- bi"
 std::ostream &operator<<(std::ostream &stream, const Complex &complex) {
-    stream << complex.real_part;
-    if(complex.imaginary_part) {
-        stream << ((complex.imaginary_part < 0) ? " - " : " + ") <<
-                std::abs(complex.imaginary_part) << 'j';
+    bool real_part_printed = false;
+    const auto epsilon = std::numeric_limits<double>::epsilon();
+    if(std::fabs(std::fabs(complex.real_part) - 0) >= epsilon) {
+        stream << complex.real_part;
+        real_part_printed = true;
     }
+
+    if(std::fabs(complex.imaginary_part - 0.0) < epsilon)
+        return stream;
+    else if(real_part_printed)
+        stream << ((complex.imaginary_part < 0) ? " - " : " + ");
+
+    if(real_part_printed == false)
+        stream << complex.imaginary_part;
+    else if(std::fabs(std::fabs(complex.imaginary_part) - 1.0) < epsilon)
+        stream << 'i';
+    else
+        stream << std::fabs(complex.imaginary_part) << "i";
+
     return stream;
+
+}
+
+// ******************************************************** Comparison operators
+
+bool operator==(const Complex &one, const Complex &two) {
+    const auto epsilon = std::numeric_limits<double>::epsilon();
+    return std::fabs(one.real_part - two.real_part) < epsilon &&
+            std::fabs(one.imaginary_part - two.imaginary_part) < epsilon;
+}
+
+bool operator !=(const Complex &one, const Complex &two) {
+    return (one == two) == false;
 }
 
 // ************************************************************ Binary operators
@@ -154,7 +181,7 @@ Complex::Complex() {
 
 Complex::Complex(const double &real_part) {
     this->real_part = real_part;
-    this->complex_part = 0;
+    this->imaginary_part = 0;
 }
 
 Complex::Complex(const double &real_part, const double &imaginary_part) {
