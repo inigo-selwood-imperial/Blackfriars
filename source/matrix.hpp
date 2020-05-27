@@ -29,6 +29,7 @@ public:
 
     Matrix();
     Matrix(const std::vector<std::vector<double>> &values);
+    Matrix(const std::initializer_list<std::vector<double>> &values);
     Matrix(const unsigned int &rows, const unsigned int &columns);
 
     void resize(const unsigned int &rows, const unsigned int &columns);
@@ -102,7 +103,7 @@ Matrix operator/(const Matrix &matrix, const double &factor) {
 
 // Returns the sum of two matrices
 Matrix operator+(const Matrix &one, const Matrix &two) {
-    return Matrix(one) *= two;
+    return Matrix(one) += two;
 }
 
 // Returns true if the matrices are equal
@@ -150,7 +151,7 @@ double &Matrix::operator()(const unsigned int &row,
 double Matrix::operator()(const unsigned int &row, const unsigned int &column)
         const {
 
-    return (*this)(row, column);
+    return _values[offset(row, column)];
 }
 
 // Multiplies the matrix by a scalar factor
@@ -162,8 +163,11 @@ Matrix &Matrix::operator*=(const double &factor) {
 
 // Multiplies the matrix by another matrix
 Matrix &Matrix::operator*=(const Matrix &matrix) {
-    if(_columns != matrix.rows())
+    if(_columns != matrix.rows()) {
+        std::cout << "Can't multiply matrices of sizes " << size() << " and " <<
+                matrix.size();
         throw -1;
+    }
 
     Matrix result(_rows, matrix.columns());
     for(unsigned int row = 0; row < _rows; row += 1) {
@@ -188,8 +192,11 @@ Matrix &Matrix::operator/=(const double &factor) {
 
 // Adds a matrix to this matrix
 Matrix &Matrix::operator+=(const Matrix &matrix) {
-    if(this->size() != matrix.size())
+    if(this->size() != matrix.size()) {
+        std::cout << "Can't add matrices of sizes " << size() << " and " <<
+                matrix.size();
         throw -1;
+    }
 
     const auto values = matrix.values();
     for(unsigned int index = 0; index < volume(); index += 1)
@@ -203,16 +210,43 @@ Matrix::Matrix() {
 }
 
 Matrix::Matrix(const std::vector<std::vector<double>> &values) {
+    unsigned int rows = values.size();
+    unsigned int columns = 0;
+    for(const auto &row : values)
+        columns = std::max(row.size(), columns);
+    resize(columns, rows);
 
+    for(unsigned int row = 0; row < rows; row += 1) {
+        for(unsigned int column = 0; column < columns; column += 1)
+            (*this)(row, column) = values[row][column];
+    }
 }
 
-Matrix::Matrix(const unsigned int &rows, const unsigned int &columns) {
-    resize(rows, columns);
+Matrix::Matrix(const std::initializer_list<std::vector<double>> &values) {
+    unsigned int rows = values.size();
+    unsigned int columns = 0;
+    for(const auto &row : values)
+        columns = std::max(row.size(), columns);
+    resize(columns, rows);
+
+    unsigned int row_index = 0;
+    unsigned int column_index = 0;
+    for(const auto &row : values) {
+        column_index = 0;
+        for(const auto &value : row) {
+            (*this)(row_index, column_index) = value;
+            column_index += 1;
+        }
+        row_index += 1;
+    }
+}
+
+Matrix::Matrix(const unsigned int &columns, const unsigned int &rows) {
+    resize(columns, rows);
 }
 
 // Resizes the matrix, copying any overlapping data into the resized matrix
-void Matrix::resize(const unsigned int &rows, const unsigned int &columns) {
-
+void Matrix::resize(const unsigned int &columns, const unsigned int &rows) {
     if(_values.empty()) {
         _rows = rows;
         _columns = columns;
@@ -270,7 +304,7 @@ unsigned int Matrix::rows() const {
 
 // Returns the size of the matrix, in the format {columns, rows}
 Matrix::Size Matrix::size() const {
-    return {_columns, _rows};
+    return {_rows, _columns};
 }
 
 // Returns the volume of the matrix
@@ -287,7 +321,14 @@ Matrix::Index Matrix::index(const unsigned int &offset) const {
 unsigned int Matrix::offset(const unsigned int &row, const unsigned int &column)
         const {
 
-    return offset({row, column});
+    unsigned int result = (row * _columns) + column;
+    if(result > (_columns * _rows)) {
+        std::cerr << "Can't access element at (" << row << ", " << column <<
+                ") from a matrix of size " << size() << " (offset = " <<
+                result << ")" << std::endl;
+        throw -1;
+    }
+    return result;
 }
 
 // Returns the row-major order offset of a given index
