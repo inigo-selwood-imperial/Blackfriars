@@ -21,6 +21,9 @@ public:
     double &operator()(const unsigned int &column, const unsigned int &row);
     double operator()(const unsigned int &column, const unsigned int &row)
             const;
+    Matrix operator()(const unsigned int &column_one,
+            const unsigned int &row_one, const unsigned int &column_two,
+            const unsigned int &row_two) const;
 
     Matrix &operator*=(const double &factor);
     Matrix &operator*=(const Matrix &matrix);
@@ -35,7 +38,11 @@ public:
     void resize(const unsigned int &rows, const unsigned int &columns);
     void clear();
 
+    Matrix &remove_column(const unsigned int &column);
+    Matrix &remove_row(const unsigned int &row);
+
     double determinant() const;
+    Matrix adjugate() const;
     Matrix cofactor() const;
     Matrix inverse() const;
     Matrix transpose() const;
@@ -153,6 +160,29 @@ double Matrix::operator()(const unsigned int &row, const unsigned int &column)
         const {
 
     return _values[offset(row, column)];
+}
+
+// Returns a submatrix
+Matrix Matrix::operator()(const unsigned int &column_one,
+        const unsigned int &row_one, const unsigned int &column_two,
+        const unsigned int &row_two) const {
+
+    if(column_one > column_two || row_one > row_two)
+        throw -1;
+    else if(column_two > _columns || row_two > _rows)
+        throw -1;
+
+    unsigned int width = column_two - column_one + 1;
+    unsigned int height = row_two - row_one + 1;
+
+    Matrix result(width, height);
+
+    for(unsigned int row = 0; row < width; row += 1) {
+        for(unsigned int column = 0; column < height; column += 1)
+            result(row, column) = (*this)(row_one + row, column_one + column);
+    }
+
+    return result;
 }
 
 // Multiplies the matrix by a scalar factor
@@ -278,6 +308,53 @@ void Matrix::clear() {
         value = 0;
 }
 
+// Removes a single column from the matrix
+Matrix &Matrix::remove_column(const unsigned int &column) {
+    if(column >= _columns)
+        throw -1;
+
+    Matrix result(_columns - 1, _rows);
+
+    for(unsigned int row_index = 0; row_index < _rows; row_index += 1) {
+        unsigned int offset = 0;
+        for(unsigned int column_index = 0; column_index < (_columns - 1);
+                column_index += 1) {
+
+            if(column_index == column)
+                offset += 1;
+
+            result(row_index, column_index) =
+                    (*this)(row_index, column_index + offset);
+        }
+    }
+
+    *this = result;
+    return *this;
+}
+
+// Removes a row from the matrix
+Matrix &Matrix::remove_row(const unsigned int &row) {
+    if(row >= _rows)
+        throw -1;
+
+    Matrix result(_columns, _rows - 1);
+
+    unsigned int offset = 0;
+    for(unsigned int row_index = 0; row_index < (_rows - 1); row_index += 1) {
+        if(row_index == row)
+            offset += 1;
+
+        for(unsigned int column_index = 0; column_index < _columns;
+                column_index += 1) {
+            result(row_index, column_index) =
+                    (*this)(row_index + offset, column_index);
+        }
+    }
+
+    *this = result;
+    return *this;
+}
+
 // Returns the determinant of the matrix
 double Matrix::determinant() const {
     if(_columns != _rows)
@@ -327,25 +404,60 @@ double Matrix::determinant() const {
         }
     }
 
-    double determinant = 1;
+    double result = 1;
     for(unsigned int offset = 0; offset < size; offset += 1) {
-        determinant *= lower_matrix(offset, offset);
-        determinant *= upper_matrix(offset, offset);
+        result *= lower_matrix(offset, offset);
+        result *= upper_matrix(offset, offset);
     }
 
     const auto epsilon = std::numeric_limits<double>::epsilon();
-    return (std::fabs(determinant - 0.0) >= epsilon) ? determinant : 0;
+    return (std::fabs(result - 0.0) >= epsilon) ? result : 0;
 }
 
+// Returns the adjugate of the matrix
+Matrix Matrix::adjugate() const {
+    return cofactor().transpose();
+}
+
+// Returns the cofactor of the matrix
 Matrix Matrix::cofactor() const {
-    
+    if(_columns != _rows)
+        throw -1;
+    const auto size = _columns;
+    Matrix result(size, size);
+
+    for(unsigned int column = 0; column < _columns; column += 1) {
+        for(unsigned int row = 0; row < _rows; row += 1) {
+            Matrix submatrix = *this;
+            submatrix.remove_column(column);
+            submatrix.remove_row(row);
+
+            int sign = (((column + row) % 2) == 0) ? 1 : -1;
+            result(row, column) = submatrix.determinant() * sign;
+        }
+    }
 
     return result;
 }
 
 // Returns the inverse of the matrix
 Matrix Matrix::inverse() const {
-    return Matrix();
+    if(_rows != _columns)
+        throw -1;
+
+    auto _determinant = this->determinant();
+    if(_determinant == 0)
+        throw -1;
+
+    auto _adjugate = this->adjugate();
+    auto size = _columns;
+    Matrix result(size, size);
+    for(unsigned int row = 0; row < size; row += 1) {
+        for(unsigned int column = 0; column < size; column += 1)
+            result(row, column) = _adjugate(row, column) / _determinant;
+    }
+
+    return result;
 }
 
 // Returns the transpose of the matrix
