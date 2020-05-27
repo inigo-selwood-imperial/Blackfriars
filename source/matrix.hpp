@@ -7,6 +7,8 @@
 
 #include <cmath>
 
+#include "complex.hpp"
+
 class Matrix {
 
 public:
@@ -18,8 +20,8 @@ public:
 
     static Matrix power(const Matrix &matrix, const unsigned int &exponent);
 
-    double &operator()(const unsigned int &column, const unsigned int &row);
-    double operator()(const unsigned int &column, const unsigned int &row)
+    Complex &operator()(const unsigned int &column, const unsigned int &row);
+    Complex operator()(const unsigned int &column, const unsigned int &row)
             const;
     Matrix operator()(const unsigned int &column_one,
             const unsigned int &row_one, const unsigned int &column_two,
@@ -31,8 +33,8 @@ public:
     Matrix &operator+=(const Matrix &matrix);
 
     Matrix();
-    Matrix(const std::vector<std::vector<double>> &values);
-    Matrix(const std::initializer_list<std::vector<double>> &values);
+    Matrix(const std::vector<std::vector<Complex>> &values);
+    Matrix(const std::initializer_list<std::vector<Complex>> &values);
     Matrix(const unsigned int &rows, const unsigned int &columns);
 
     void resize(const unsigned int &rows, const unsigned int &columns);
@@ -41,7 +43,7 @@ public:
     Matrix &remove_column(const unsigned int &column);
     Matrix &remove_row(const unsigned int &row);
 
-    double determinant() const;
+    Complex determinant() const;
     Matrix adjugate() const;
     Matrix cofactor() const;
     Matrix inverse() const;
@@ -53,12 +55,12 @@ public:
 
     unsigned int volume() const;
 
-    std::vector<double> values() const;
-    std::vector<double> &values();
+    std::vector<Complex> values() const;
+    std::vector<Complex> &values();
 
 private:
 
-    std::vector<double> _values;
+    std::vector<Complex> _values;
 
     unsigned int _columns;
     unsigned int _rows;
@@ -123,7 +125,7 @@ bool operator==(const Matrix &one, const Matrix &two) {
     const auto two_values = two.values();
     auto epsilon = std::numeric_limits<double>::epsilon();
     for(unsigned int index = 0; index < one.volume(); index += 1) {
-        if(std::fabs(one_values[index] - two_values[index]) >= epsilon)
+        if(one_values[index] != two_values[index])
             return false;
     }
 
@@ -149,14 +151,14 @@ Matrix Matrix::power(const Matrix &matrix, const unsigned int &exponent) {
 }
 
 // Returns the value at a given column and row index
-double &Matrix::operator()(const unsigned int &row,
+Complex &Matrix::operator()(const unsigned int &row,
         const unsigned int &column) {
 
     return _values[offset(row, column)];
 }
 
 // Returns the value at a given column and row index
-double Matrix::operator()(const unsigned int &row, const unsigned int &column)
+Complex Matrix::operator()(const unsigned int &row, const unsigned int &column)
         const {
 
     return _values[offset(row, column)];
@@ -211,7 +213,7 @@ Matrix &Matrix::operator*=(const Matrix &matrix) {
     Matrix result(_rows, matrix.columns());
     for(unsigned int row = 0; row < _rows; row += 1) {
         for(unsigned int column = 0; column < matrix.columns(); column += 1) {
-            double sum = 0;
+            Complex sum = 0;
             for(unsigned int index = 0; index < _columns; index += 1)
                 sum += (*this)(row, index) * matrix(index, column);
             result(row, column) = sum;
@@ -248,7 +250,7 @@ Matrix::Matrix() {
     _rows = 0;
 }
 
-Matrix::Matrix(const std::vector<std::vector<double>> &values) {
+Matrix::Matrix(const std::vector<std::vector<Complex>> &values) {
     unsigned int rows = values.size();
     unsigned int columns = 0;
     for(const auto &row : values)
@@ -261,7 +263,7 @@ Matrix::Matrix(const std::vector<std::vector<double>> &values) {
     }
 }
 
-Matrix::Matrix(const std::initializer_list<std::vector<double>> &values) {
+Matrix::Matrix(const std::initializer_list<std::vector<Complex>> &values) {
     unsigned int rows = values.size();
     unsigned int columns = 0;
     for(const auto &row : values)
@@ -290,7 +292,6 @@ void Matrix::resize(const unsigned int &columns, const unsigned int &rows) {
         _rows = rows;
         _columns = columns;
         _values.resize(rows * columns, 0);
-
         return;
     }
 
@@ -370,7 +371,7 @@ Matrix &Matrix::remove_row(const unsigned int &row) {
 }
 
 // Returns the determinant of the matrix
-double Matrix::determinant() const {
+Complex Matrix::determinant() const {
     if(_columns != _rows) {
         std::cerr << "Can't get the determinant of a non-square matrix " <<
                 size() << std::endl;
@@ -421,14 +422,18 @@ double Matrix::determinant() const {
         }
     }
 
-    double result = 1;
+    Complex result = 1;
     for(unsigned int offset = 0; offset < size; offset += 1) {
         result *= lower_matrix(offset, offset);
         result *= upper_matrix(offset, offset);
     }
 
     const auto epsilon = std::numeric_limits<double>::epsilon();
-    return (std::fabs(result - 0.0) >= epsilon) ? result : 0;
+    result.real_part = (std::fabs(result.real_part - 0.0) >= epsilon) ?
+            result.real_part : 0;
+    result.imaginary_part = (std::fabs(result.imaginary_part - 0.0) >=
+            epsilon) ? result.imaginary_part : 0;
+    return result;
 }
 
 // Returns the adjugate of the matrix
@@ -471,7 +476,7 @@ Matrix Matrix::inverse() const {
 
     auto _determinant = this->determinant();
     if(_determinant == 0) {
-        std::cerr << "Can't get inverse of matrix with a zero determinant" << 
+        std::cerr << "Can't get inverse of matrix with a zero determinant" <<
                 std::endl;
         throw -1;
     }
@@ -542,11 +547,11 @@ unsigned int Matrix::offset(const Index &index) const {
 }
 
 // Returns a reference the raw values contained by the matrix
-std::vector<double> &Matrix::values() {
+std::vector<Complex> &Matrix::values() {
     return _values;
 }
 
 // Returns the raw values contained by the matrix
-std::vector<double> Matrix::values() const {
+std::vector<Complex> Matrix::values() const {
     return _values;
 }
