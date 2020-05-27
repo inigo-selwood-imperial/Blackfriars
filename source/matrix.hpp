@@ -167,10 +167,18 @@ Matrix Matrix::operator()(const unsigned int &column_one,
         const unsigned int &row_one, const unsigned int &column_two,
         const unsigned int &row_two) const {
 
-    if(column_one > column_two || row_one > row_two)
+    if(column_one > column_two || row_one > row_two) {
+        std::cerr << "Can't get submatrix with corners (" << row_one << ", " <<
+                column_one << "), (" << row_two << ", " << column_two << ")" <<
+                std::endl;
         throw -1;
-    else if(column_two > _columns || row_two > _rows)
+    }
+    else if(column_two > _columns || row_two > _rows) {
+        std::cerr << "Can't get submatrix with rightmost edge (" << row_two <<
+                ", " << column_two << ") from a matrix with size " << size() <<
+                std::endl;
         throw -1;
+    }
 
     unsigned int width = column_two - column_one + 1;
     unsigned int height = row_two - row_one + 1;
@@ -310,8 +318,11 @@ void Matrix::clear() {
 
 // Removes a single column from the matrix
 Matrix &Matrix::remove_column(const unsigned int &column) {
-    if(column >= _columns)
+    if(column >= _columns) {
+        std::cerr << "Can't remove column " << column << " from a matrix of "
+                "size " << size() << std::endl;
         throw -1;
+    }
 
     Matrix result(_columns - 1, _rows);
 
@@ -334,8 +345,11 @@ Matrix &Matrix::remove_column(const unsigned int &column) {
 
 // Removes a row from the matrix
 Matrix &Matrix::remove_row(const unsigned int &row) {
-    if(row >= _rows)
+    if(row >= _rows) {
+        std::cerr << "Can't remove row " << row << " from a matrix of size " <<
+                size() << std::endl;
         throw -1;
+    }
 
     Matrix result(_columns, _rows - 1);
 
@@ -357,8 +371,11 @@ Matrix &Matrix::remove_row(const unsigned int &row) {
 
 // Returns the determinant of the matrix
 double Matrix::determinant() const {
-    if(_columns != _rows)
+    if(_columns != _rows) {
+        std::cerr << "Can't get the determinant of a non-square matrix " <<
+                size() << std::endl;
         throw -1;
+    }
 
     auto size = _columns;
 
@@ -421,8 +438,12 @@ Matrix Matrix::adjugate() const {
 
 // Returns the cofactor of the matrix
 Matrix Matrix::cofactor() const {
-    if(_columns != _rows)
+    if(_columns != _rows) {
+        std::cerr << "Can't create cofactor matrix of a non-square matrix " <<
+                size() << std::endl;
         throw -1;
+    }
+
     const auto size = _columns;
     Matrix result(size, size);
 
@@ -442,12 +463,18 @@ Matrix Matrix::cofactor() const {
 
 // Returns the inverse of the matrix
 Matrix Matrix::inverse() const {
-    if(_rows != _columns)
+    if(_rows != _columns) {
+        std::cerr << "Can't create inverse matrix of a non-square matrix " <<
+                size() << std::endl;
         throw -1;
+    }
 
     auto _determinant = this->determinant();
-    if(_determinant == 0)
+    if(_determinant == 0) {
+        std::cerr << "Can't get inverse of matrix with a zero determinant" << 
+                std::endl;
         throw -1;
+    }
 
     auto _adjugate = this->adjugate();
     auto size = _columns;
