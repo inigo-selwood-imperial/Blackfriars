@@ -36,6 +36,7 @@ public:
     void clear();
 
     double determinant() const;
+    Matrix cofactor() const;
     Matrix inverse() const;
     Matrix transpose() const;
 
@@ -279,7 +280,67 @@ void Matrix::clear() {
 
 // Returns the determinant of the matrix
 double Matrix::determinant() const {
-    return 0;
+    if(_columns != _rows)
+        throw -1;
+
+    auto size = _columns;
+
+    Matrix lower_matrix(size, size);
+    Matrix upper_matrix(size, size);
+
+    std::array<unsigned int, 2> index;
+    for(index[0] = 0; index[0] < size; index[0] += 1) {
+        for(index[1] = 0; index[1] < size; index[1] += 1) {
+
+            if(index[1] < index[0])
+                lower_matrix(index[1], index[0]) = 0;
+
+            else {
+                lower_matrix(index[1], index[0]) = (*this)(index[1], index[0]);
+                for(unsigned int offset = 0; offset < index[0]; offset += 1) {
+                    lower_matrix(index[1], index[0]) =
+                            lower_matrix(index[1], index[0]) -
+                            lower_matrix(index[1], offset) *
+                            upper_matrix(offset, index[0]);
+                }
+            }
+        }
+        for(index[1] = 0; index[1] < size; index[1] += 1) {
+
+            if(index[1] < index[0])
+                upper_matrix(index[0], index[1]) = 0;
+
+            else if(index[1] == index[0])
+                upper_matrix(index[0], index[1]) = 1;
+
+            else {
+                upper_matrix(index[0], index[1]) = (*this)(index[0], index[1]) /
+                        lower_matrix(index[0], index[0]);
+                for(unsigned int offset = 0; offset < index[0]; offset += 1) {
+                    upper_matrix(index[0], index[1]) =
+                            upper_matrix(index[0], index[1]) -
+                            ((lower_matrix(index[0], offset) *
+                            upper_matrix(offset, index[1])) /
+                            lower_matrix(index[0], index[0]));
+                }
+            }
+        }
+    }
+
+    double determinant = 1;
+    for(unsigned int offset = 0; offset < size; offset += 1) {
+        determinant *= lower_matrix(offset, offset);
+        determinant *= upper_matrix(offset, offset);
+    }
+
+    const auto epsilon = std::numeric_limits<double>::epsilon();
+    return (std::fabs(determinant - 0.0) >= epsilon) ? determinant : 0;
+}
+
+Matrix Matrix::cofactor() const {
+    
+
+    return result;
 }
 
 // Returns the inverse of the matrix
@@ -289,7 +350,12 @@ Matrix Matrix::inverse() const {
 
 // Returns the transpose of the matrix
 Matrix Matrix::transpose() const {
-    return Matrix();
+    Matrix result(_rows, _columns);
+    for(unsigned int column = 0; column < _columns; column += 1) {
+        for(unsigned int row = 0; row < _rows; row += 1)
+            result(column, row) = (*this)(row, column);
+    }
+    return result;
 }
 
 // Returns the number of columns in the matrix
