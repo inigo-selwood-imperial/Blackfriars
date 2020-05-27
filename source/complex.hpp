@@ -36,9 +36,12 @@ public:
 
 // Prints a complex number to the stream in the format: "a +/- bi"
 std::ostream &operator<<(std::ostream &stream, const Complex &complex) {
-    return stream << complex.real_part <<
-            ((complex.imaginary_part < 0) ? " - " : " + ") <<
-            std::abs(complex.imaginary_part) << 'i';
+    stream << complex.real_part;
+    if(complex.imaginary_part) {
+        stream << ((complex.imaginary_part < 0) ? " - " : " + ") <<
+                std::abs(complex.imaginary_part) << 'j';
+    }
+    return stream;
 }
 
 // ************************************************************ Binary operators
