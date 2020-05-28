@@ -33,6 +33,7 @@ public:
     Matrix &operator+=(const Matrix &matrix);
 
     Matrix();
+    Matrix(const double &value);
     Matrix(const std::vector<std::vector<Complex>> &values);
     Matrix(const std::initializer_list<std::vector<Complex>> &values);
     Matrix(const unsigned int &rows, const unsigned int &columns);
@@ -248,6 +249,11 @@ Matrix &Matrix::operator+=(const Matrix &matrix) {
 Matrix::Matrix() {
     _columns = 0;
     _rows = 0;
+}
+
+Matrix::Matrix(const double &value) {
+    resize(1, 1);
+    values[0] = value;
 }
 
 Matrix::Matrix(const std::vector<std::vector<Complex>> &values) {
