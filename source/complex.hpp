@@ -21,6 +21,8 @@ public:
     Complex &operator+=(const Complex &value);
     Complex &operator+=(const double &value);
 
+    Complex &operator=(const double &value);
+
     Complex();
     Complex(const double &real_part);
     Complex(const double &real_part, const double &imaginary_part);
@@ -171,6 +173,11 @@ Complex &Complex::operator+=(const Complex &value) {
 // (a + bi) + c = (a + c) + bi
 Complex &Complex::operator+=(const double &value) {
     real_part += value;
+    return *this;
+}
+
+Complex &Complex::operator=(const double &value) {
+    real_part = value;
     return *this;
 }
 
