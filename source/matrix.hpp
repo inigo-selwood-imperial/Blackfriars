@@ -550,7 +550,11 @@ Steps in creating a cofactor matrix:
     (2) Take the determinant of this new submatrix, and assign it to the
         relevant row and column in the resultant matrix
     (3) Apply a checkerboard pattern of negation to the result matrix. In short,
+<<<<<<< HEAD
         any element which has an even row and column index should be negated
+=======
+        any element which has an even row and column index, should be negated
+>>>>>>> d7ffc0e6bc690984bf3c399d8dd53494387a145a
 */
 Matrix Matrix::cofactor() const {
 
