@@ -29,9 +29,12 @@ well as dedicated functions for finding the following properties of a matrix:
 The values of the matrix are stored in row-major order, meaning that the
 values are accessed as such:
 
-    matrix = | 00 01 02 |
-             | 10 11 12 |
-             | 20 21 22 |
+    matrix = | 00 01 ... 0n |
+             | 10 11 ... 1n |
+             |       ...    |
+             | m0 m1 ... mn |
+
+TODO: Guard against operations on matrices with width or height 1
 */
 
 class Matrix {
@@ -101,6 +104,7 @@ Prints an matrix to a stream, in the following format:
     [ 00, 01, ..., 0n]
     [10, 11, ..., 1n]
     [20, 21, ..., 2n]
+    [        ...    ]
     [m0, m1, ..., mn]
 
 */
@@ -550,11 +554,7 @@ Steps in creating a cofactor matrix:
     (2) Take the determinant of this new submatrix, and assign it to the
         relevant row and column in the resultant matrix
     (3) Apply a checkerboard pattern of negation to the result matrix. In short,
-<<<<<<< HEAD
         any element which has an even row and column index should be negated
-=======
-        any element which has an even row and column index, should be negated
->>>>>>> d7ffc0e6bc690984bf3c399d8dd53494387a145a
 */
 Matrix Matrix::cofactor() const {
 
