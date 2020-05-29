@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+namespace Parse {
+
 // Flags for skipping whitespace
 enum Whitespace {
     COMMENTS    = 1,
@@ -13,7 +15,7 @@ enum Whitespace {
 
 // Allows iteration through a block of text, with helpers for getting data
 // about line, column, and indentation
-class ParseBuffer {
+class Buffer {
 
 private:
 
@@ -49,7 +51,7 @@ public:
 
     };
 
-    ParseBuffer(const std::string &text);
+    Buffer(const std::string &text);
 
     char get_current() const;
     char get_next() const;
@@ -70,7 +72,7 @@ public:
 
 // Increments the buffer's position within the text, updating line and column
 // information accordingly
-void ParseBuffer::increment(const unsigned int &steps = 1) {
+void Buffer::increment(const unsigned int &steps = 1) {
     for(unsigned int offset = 0; offset < steps; offset += 1) {
         index += 1;
         if(text[index] == '\n') {
@@ -84,7 +86,7 @@ void ParseBuffer::increment(const unsigned int &steps = 1) {
 
 // Decrements the buffer's position within the text, updating line and column
 // information accordingly
-void ParseBuffer::decrement(const unsigned int &steps = 1) {
+void Buffer::decrement(const unsigned int &steps = 1) {
     for(unsigned int offset = 0; offset < steps; offset += 1) {
         index -= 1;
         if(text[index] == '\n') {
@@ -99,7 +101,7 @@ void ParseBuffer::decrement(const unsigned int &steps = 1) {
     }
 }
 
-ParseBuffer::ParseBuffer(const std::string &text) {
+Buffer::Buffer(const std::string &text) {
     if(text.empty())
         return;
     this->text = text;
@@ -136,37 +138,37 @@ ParseBuffer::ParseBuffer(const std::string &text) {
 }
 
 // Gets the current character in the text, or 0 if the end is reached
-char ParseBuffer::get_current() const {
+char Buffer::get_current() const {
     return index < length ? text[index] : 0;
 }
 
 // Gets the next character in the text, or 0 if the end is reached
-char ParseBuffer::get_next() const {
+char Buffer::get_next() const {
     return ((index + 1) < length) ? text[index + 1] : 0;
 }
 
 // True if the index has reached the end of the text
-bool ParseBuffer::end_reached() const {
+bool Buffer::end_reached() const {
     return index >= length;
 }
 
 // Skips the current character, returning its value (or 0 if the end has been
 // reached)
-char ParseBuffer::skip_current() {
+char Buffer::skip_current() {
     auto value = get_current();
     increment();
     return value;
 }
 
 // Skips a character, returning it if encountered, or 0 otherwise
-char ParseBuffer::skip_character(const char &character) {
+char Buffer::skip_character(const char &character) {
     if(get_current() == character)
         return skip_current();
     return 0;
 }
 
 // Skips specified types of whitespace, returning the whitespace encountered
-std::string ParseBuffer::skip_whitespace(const int &flags = 0xF) {
+std::string Buffer::skip_whitespace(const int &flags = 0xF) {
     std::string result;
     while(true) {
         if(end_reached())
@@ -193,7 +195,7 @@ std::string ParseBuffer::skip_whitespace(const int &flags = 0xF) {
 }
 
 // Skips a string, returning it if found
-std::string ParseBuffer::skip_string(const std::string &text) {
+std::string Buffer::skip_string(const std::string &text) {
     if(index + text.length() >= length)
         return "";
 
@@ -207,13 +209,13 @@ std::string ParseBuffer::skip_string(const std::string &text) {
 
 // Gets the buffer's position
 // Position data includes the column, line, and current index
-ParseBuffer::Position ParseBuffer::get_position() const {
+Buffer::Position Buffer::get_position() const {
     return Position(index, line + 1, column + 1);
 }
 
 // Sets the buffer's position
 // If the line/column data doesn't match the index, an error is thrown
-void ParseBuffer::set_position(const Position &position) {
+void Buffer::set_position(const Position &position) {
     if(index != (line_start_indices[line] + column))
         throw -1;
 
@@ -221,3 +223,5 @@ void ParseBuffer::set_position(const Position &position) {
     line = position.line;
     column = position.column;
 }
+
+}; // Namespace Parse
