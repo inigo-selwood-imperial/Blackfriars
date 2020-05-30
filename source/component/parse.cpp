@@ -8,8 +8,9 @@ unsigned int parse_integer(Parse::Buffer &buffer) {}
 // ************************************************************* Parse templates
 
 // Parses a passive component of indeterminate type
-template <typename PassiveType, char designator_prefix>
-typename PassiveType::Pointer Passive::parse(Parse::Buffer &buffer) {
+template <typename PassiveType>
+typename PassiveType::Pointer Passive::parse(Parse::Buffer &buffer,
+        const char &designator_prefix) {
 
     // Check the right function has been called for the current buffer
     // character
@@ -34,8 +35,9 @@ typename PassiveType::Pointer Passive::parse(Parse::Buffer &buffer) {
 }
 
 // Parses a source definition of indeterminate type
-template <typename SourceType, char designator_prefix>
-typename SourceType::Pointer Source::parse(Parse::Buffer &buffer) {
+template <typename SourceType>
+typename SourceType::Pointer Source::parse(Parse::Buffer &buffer,
+        const char &designator_prefix) {
 
     // Check the right function has been called for the current buffer
     // character
@@ -106,17 +108,17 @@ typename SourceType::Pointer Source::parse(Parse::Buffer &buffer) {
 
 // Parses a capacitor definition
 Capacitor::Pointer Capacitor::parse(Parse::Buffer &buffer) {
-    return Passive::parse<Capacitor, 'C'>(buffer);
+    return Passive::parse<Capacitor>(buffer, 'C');
 }
 
 // Parses an inductor definition
 Inductor::Pointer Inductor::parse(Parse::Buffer &buffer) {
-    return Passive::parse<Inductor, 'L'>(buffer);
+    return Passive::parse<Inductor>(buffer, 'L');
 }
 
 // Parses a resistor definition
 Resistor::Pointer Resistor::parse(Parse::Buffer &buffer) {
-    return Passive::parse<Resistor, 'R'>(buffer);
+    return Passive::parse<Resistor>(buffer, 'R');
 }
 
 // Parses a transistor definition
@@ -182,12 +184,12 @@ Transistor::Pointer Transistor::parse(Parse::Buffer &buffer) {
 
 // Parses a current source definition
 CurrentSource::Pointer CurrentSource::parse(Parse::Buffer &buffer) {
-    return Source::parse<CurrentSource, 'I'>(buffer);
+    return Source::parse<CurrentSource>(buffer, 'I');
 }
 
 // Parses a voltage source definition
 VoltageSource::Pointer VoltageSource::parse(Parse::Buffer &buffer) {
-    return Source::parse<VoltageSource, 'V'>(buffer);
+    return Source::parse<VoltageSource>(buffer, 'V');
 }
 
 // ************************************************************* Parse delegator

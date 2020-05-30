@@ -48,8 +48,6 @@ public:
 
     static Pointer parse(Parse::Buffer &buffer);
 
-    // virtual void print(std::ostream &stream) = 0;
-
     Component(const Type &type) : type(type) {
         designator = 0;
         nodes.resize(2);
@@ -76,11 +74,9 @@ public:
 
     double value;
 
-    template <typename PassiveType, char designator_prefix>
-    static typename PassiveType::Pointer parse(Parse::Buffer &buffer);
-
-    // template <typename PassiveType, char designator_prefix>
-    // static typename void print(std::ostream &stream);
+    template <typename PassiveType>
+    static typename PassiveType::Pointer parse(Parse::Buffer &buffer,
+            const char &designator_prefix);
 
 };
 
@@ -91,8 +87,6 @@ public:
 
     static Pointer parse(Parse::Buffer &buffer);
 
-    // void print(std::ostream &stream) override;
-
 };
 
 class Inductor : public Passive,
@@ -102,8 +96,6 @@ public:
 
     static Pointer parse(Parse::Buffer &buffer);
 
-    // void print(std::ostream &stream) override;
-
 };
 
 class Resistor : public Passive,
@@ -112,8 +104,6 @@ class Resistor : public Passive,
 public:
 
     static Pointer parse(Parse::Buffer &buffer);
-
-    // void print(std::ostream &stream) override;
 
 };
 
@@ -127,8 +117,6 @@ class Diode : public Semiconductor,
 public:
 
     static Pointer parse(Parse::Buffer &buffer);
-
-    // void print(std::ostream &stream) override;
 
 };
 
@@ -150,8 +138,6 @@ public:
 
     static Pointer parse(Parse::Buffer &buffer);
 
-    // void print(std::ostream &stream) override;
-
 };
 
 // ********************************************************************* Sources
@@ -168,11 +154,9 @@ public:
     double offset;
     double phase;
 
-    template <typename SourceType, char designator_prefix>
-    static typename SourceType::Pointer parse(Parse::Buffer &buffer);
-
-    // template <typename SourceType, char designator_prefix>
-    // static typename void print(std::ostream &stream);
+    template <typename SourceType>
+    static typename SourceType::Pointer parse(Parse::Buffer &buffer,
+            const char &designator_prefix);
 
     Source() {
         amplitude = 0;
@@ -193,8 +177,6 @@ public:
 
     static Pointer parse(Parse::Buffer &buffer);
 
-    // void print(std::ostream &stream) override;
-
 };
 
 class VoltageSource : public Source,
@@ -203,7 +185,5 @@ class VoltageSource : public Source,
 public:
 
     static Pointer parse(Parse::Buffer &buffer);
-
-    // void print(std::ostream &stream) override;
 
 };
