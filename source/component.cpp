@@ -1,77 +1,61 @@
 #include "component.hpp"
 
-// *************************************************************** Parse helpers
+// ******************************************************* Character identifiers
 
-// Returns the correct power of ten for each metric prefix
-static int parse_prefix(Parse::Buffer &buffer) {
+// Returns true if the character is 0-9
+static bool is_integer(const char &character) {
+    return character >= '0' && character <= '9';
+}
 
-    // Check first for the 'mega' prefix, since the single-letter prefix switch
-    // case would parse it as 'milli'
-    if(buffer.skip_string("Meg").empty() == false)
+// Returns true if the character is 0-9 or a decimal point
+static bool is_number(const char &character) {
+    return (charcter >= '0' && character <= '9') || character == '.';
+}
+
+// Returns true if the character is part of a metric suffix (pico, nano, etc.)
+static bool inline is_suffix(const char &character) {
+    auto case_character = std::tolower(character);
+    return case_character == 'f' || case_character == 'p' ||
+            case_character == 'n' || case_character == 'u' ||
+            case_character == 'm' || case_character == 'k' ||
+            case_character == 'g' || case_character == 't';
+}
+
+// ******************************************************* Unspecialized parsers
+
+// Returns the power of 10 represented by a metric suffix
+static int inline parse_suffix(Parse::Buffer &buffer) {
+    if(buffer.skip_string("Meg") == "Meg")
         return 6;
 
-    // Switch through the different prefixes
-    switch(std::toupper(buffer.get_current())) {
-        case 'F': // Femto
+    switch(std::tolower(buffer.skip_current())) {
+        case 'f':
             return -15;
-
-        case 'P': // Pico
+        case 'p':
             return -12;
-
-        case 'N': // Nano
+        case 'n':
             return -9;
-
-        case 'U': // Micro
+        case 'u':
             return -6;
-
-        case 'M': // Milli
+        case 'm':
             return -3;
-
-        case 'K': // Kilo
+        case 'k':
             return 3;
-
-        case 'G': // Giga
+        case 'g':
             return 9;
-
-        case 'T': // Terra
+        case 't':
             return 12;
     }
 
     throw -1;
 }
 
-// Parses a value, taking into account any prefixed thrown in there
-static double parse_value(Parse::Buffer &buffer) {
-
-}
-
-// Parses an integer, disregarding any leading '0's
+// Parses an integer value, ignoring suffixed zeros
 static unsigned int parse_integer(Parse::Buffer &buffer) {
-    if(character < '0' || character < '9')
-        throw -1;
-
-    // Skip leading '0's
-    while(buffer.get_current() == '0')
-        buffer.skip_current();
-
-    // Read any numerical digits into a string which can later be converted
-    // into a integer
     std::string value;
-    char character;
-    while(true) {
-        character = buffer.get_current();
-        if(character < '0' || character > '9')
-            break;
-        else
-            value += buffer.skip_character();
-    }
+    while(is_integer(buffer.get_current()))
+        value += buffer.skip_current();
 
-    // The integer could just be zero, in which case the string will be empty,
-    // and the conversion operator would throw an error
-    if(value.empty())
-        return 0;
-
-    // Try to cast to an integer
     try {
         return std::stoi(value);
     }
@@ -80,11 +64,61 @@ static unsigned int parse_integer(Parse::Buffer &buffer) {
     }
 }
 
-// Avoids having to skip the single 'N' character every time a node's parsed
-static inline unsigned int parse_node(Parse::Buffer &buffer) {
+// Parses a number (not including metric suffixes)
+static double parse_number(Parse::Buffer &buffer) {
+    std::string value;
+    while(is_number(buffer.get_current()))
+        value += buffer.skip_current();
+
+    try {
+        return std::stof(value);
+    }
+    catch(...) {
+        throw -1;
+    }
+}
+
+// ********************************************************* Specialized parsers
+
+// Parses a node, ignoring the suffixed 'N', and leading zeros
+static unsigned int parse_node(Parse::Buffer &buffer) {
     if(buffer.skip_character('N') == false)
         throw -1;
-    return parse_integer(buffer);
+    return parse_number(buffer);
+}
+
+/*
+Parse a value, with decimal points and metric suffixes
+
+A value is composed of up to three parts. A first number, an optional metrix
+suffix, and a further optional second number -- all sandwiched together with no
+spaces.
+
+Some examples of the same number in different notation are: 1200, 1.2k, and 1k2
+*/
+static double parse_value(Parse::Buffer &buffer) {
+    std::string string_value;
+
+    while(is_number(buffer.get_current()))
+        string_value += buffer.skip_current();
+
+    auto factor = 0;
+    if(is_suffix(buffer.get_current()))
+        factor = parse_suffix(buffer);
+
+    if(is_number(buffer.get_current()) && factor)
+        string_value += ".";
+
+    while(is_number(buffer.get_current()))
+        string_value += buffer.skip_current();
+
+    try {
+        double value = std::stof(string_value);
+        return string_value * std::pow(10, factor);
+    }
+    catch(...) {
+        throw -1;
+    }
 }
 
 // ************************************************************* Parse templates
