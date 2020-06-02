@@ -161,15 +161,7 @@ public:
     static typename SourceType::Pointer parse(Parse::Buffer &buffer,
             const char &designator_prefix);
 
-    Source() {
-        amplitude = 0;
-        cycles = 0;
-        damping_factor = 0;
-        delay = 0;
-        frequency = 0;
-        offset = 0;
-        phase = 0;
-    }
+    Source();
 
 };
 
@@ -190,3 +182,7 @@ public:
     static Pointer parse(Parse::Buffer &buffer);
 
 };
+
+// ************************************************************** Error handlers
+
+struct ParseLogicError {};

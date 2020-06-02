@@ -1,5 +1,51 @@
 #include "component.hpp"
 
+/*
+This source file comes in several parts:
+    (1) Constructors
+
+    (2) Character identifiers
+        These functions are used by the unspecialized to identify things like
+        integers
+
+    (3) Unspecialized parsers
+        Unlike the functions parse_node and parse_value, these functions are
+        used to perform more general functions like parse_number, which can
+        be specialized for different tasks
+
+    (4) Specialized parsers
+        Helpers which handle parsing common fields, such as node number, and
+        metric format values
+
+    (5) Parse templates
+        These templates are abstract functions of some of the components' base
+        classes, which implement the general form of their derived classes'
+        parse functions
+
+    (6) Parse functions
+        The static parse functions of the individual derived component classes,
+        most often an implementation of a parse template (except in the cases
+        of semiconductors like diodes and transistors)
+
+    (7) Parse delegator
+        This function is the most generic case of a parse function, where the
+        program expects to find a component definition within the parse buffer,
+        but does not care what type of component it is. It will return an
+        unspecialized pointer which can be downcast later
+*/
+
+// **************************************************************** Constructors
+
+Source::Source() {
+    amplitude = 0;
+    cycles = 0;
+    damping_factor = 0;
+    delay = 0;
+    frequency = 0;
+    offset = 0;
+    phase = 0;
+}
+
 // ******************************************************* Character identifiers
 
 // Returns true if the character is 0-9
