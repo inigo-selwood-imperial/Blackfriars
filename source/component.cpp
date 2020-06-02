@@ -55,7 +55,7 @@ static bool is_integer(const char &character) {
 
 // Returns true if the character is 0-9 or a decimal point
 static bool is_number(const char &character) {
-    return (charcter >= '0' && character <= '9') || character == '.';
+    return (character >= '0' && character <= '9') || character == '.';
 }
 
 // Returns true if the character is part of a metric suffix (pico, nano, etc.)
@@ -123,9 +123,12 @@ static double parse_number(Parse::Buffer &buffer) {
         return std::stof(value);
     }
     catch(...) {
-        std::cerr << "Failed to convert string to integer"
+        std::cerr << "Failed to convert string to integer" << std::endl;
         throw -1;
     }
+
+    // Prevents the compiler from complaining
+    return 0;
 }
 
 // ********************************************************* Specialized parsers
@@ -165,11 +168,11 @@ static double parse_value(Parse::Buffer &buffer) {
         string_value += buffer.skip_current();
 
     try {
-        double value = std::stof(string_value);
-        return string_value * std::pow(10, factor);
+        const double value = std::stof(string_value);
+        return value * std::pow(10, factor);
     }
     catch(...) {
-        std::cerr << "Couldn't parse metric-suffixed value" << std::endl
+        std::cerr << "Couldn't parse metric-suffixed value" << std::endl;
         throw -1;
     }
 }

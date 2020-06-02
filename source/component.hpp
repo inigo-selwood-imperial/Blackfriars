@@ -1,9 +1,11 @@
 #pragma once
 
-#include <functional> 
+#include <functional>
 #include <iostream> // std::endl
 #include <locale> // std::tolower
 #include <memory> // std::shared_ptr
+
+#include <cmath>
 
 #include "parse.hpp"
 
