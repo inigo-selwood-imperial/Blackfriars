@@ -1,4 +1,4 @@
-std::endl#pragma once
+#pragma once
 
 #include <array>
 #include <iostream>

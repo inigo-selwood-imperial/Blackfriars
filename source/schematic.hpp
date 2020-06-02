@@ -22,7 +22,7 @@ private:
             const Schematic &schematic) {
 
         for(const auto &component : schematic._components) {
-            switch(component.type) {
+            switch(component->type) {
                 case Component::CAPACITOR:
                     stream << "capacitor" << std::endl;
                     break;

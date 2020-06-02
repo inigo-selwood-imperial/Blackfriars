@@ -4,7 +4,7 @@
 
 int main() {
     try {
-        auto netlist = Parse::load("..\\resources\\test_1.net");
+        auto netlist = Parse::load_file("..\\resources\\test_1.net");
         Schematic schematic(netlist);
         std::cout << schematic << std::endl;
     }
