@@ -5,6 +5,26 @@
 
 namespace Parse {
 
+// ************************************************************ File load helper
+
+// More memory and computationally efficient than constructing a stringstream
+// object, according to StackOverflow
+std::string load_file(const std::string &name) {
+    std::ifstream stream(name, std::ios::in);
+    if(stream) {
+        std::ostringstream contents;
+        contents << stream.rdbuf();
+        stream.close();
+        return contents.str();
+    }
+
+    // If the stream wasn't valid, throw an error
+    std::cerr << "Couldn't open file " << name;
+    throw -1;
+}
+
+// ********************************************************************** Buffer
+
 // Flags for skipping whitespace
 enum Whitespace {
     COMMENTS    = 1,

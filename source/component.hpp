@@ -1,9 +1,10 @@
 #pragma once
 
 #include <functional>
+#include <stringstream>
 #include <memory>
 
-#include "parse_buffer.hpp"
+#include "../parse.hpp"
 
 /*
 This header file contains the definitions for all the types of components
@@ -84,6 +85,8 @@ class Capacitor : public Passive,
         public ComponentProxy<Capacitor, Component::CAPACITOR> {
 
 public:
+
+    double charge;
 
     static Pointer parse(Parse::Buffer &buffer);
 

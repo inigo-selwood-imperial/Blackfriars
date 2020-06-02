@@ -1,4 +1,4 @@
-#include "parse.hpp"
+#include "component.hpp"
 
 // *************************************************************** Parse helpers
 
