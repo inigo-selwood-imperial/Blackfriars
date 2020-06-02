@@ -93,6 +93,7 @@ static int inline parse_suffix(Parse::Buffer &buffer) {
             return 12;
     }
 
+    std::cerr << "Failed to parse metrix suffix";
     throw -1;
 }
 
@@ -106,6 +107,8 @@ static unsigned int parse_integer(Parse::Buffer &buffer) {
         return std::stoi(value);
     }
     catch(...) {
+        std::cerr << "Failed to convert string to floating point numner" <<
+                std::endl;
         throw -1;
     }
 }
@@ -120,6 +123,7 @@ static double parse_number(Parse::Buffer &buffer) {
         return std::stof(value);
     }
     catch(...) {
+        std::cerr << "Failed to convert string to integer"
         throw -1;
     }
 }
@@ -128,8 +132,10 @@ static double parse_number(Parse::Buffer &buffer) {
 
 // Parses a node, ignoring the suffixed 'N', and leading zeros
 static unsigned int parse_node(Parse::Buffer &buffer) {
-    if(buffer.skip_character('N') == false)
+    if(buffer.skip_character('N') == false) {
+        std::cerr << "Expected to find node definition in text";
         throw -1;
+    }
     return parse_number(buffer);
 }
 
@@ -163,6 +169,7 @@ static double parse_value(Parse::Buffer &buffer) {
         return string_value * std::pow(10, factor);
     }
     catch(...) {
+        std::cerr << "Couldn't parse metric-suffixed value" << std::endl
         throw -1;
     }
 }
@@ -176,8 +183,11 @@ typename PassiveType::Pointer Passive::parse(Parse::Buffer &buffer,
 
     // Check the right function has been called for the current buffer
     // character
-    if(buffer.skip_character(designator_prefix) == false)
+    if(buffer.skip_character(designator_prefix) == false) {
+        std::cerr << "Expected a component definition within buffer" <<
+                std::endl;
         throw -1;
+    }
 
     // Create a new source
     auto source = typename PassiveType::Pointer(new PassiveType());
@@ -203,8 +213,11 @@ typename SourceType::Pointer Source::parse(Parse::Buffer &buffer,
 
     // Check the right function has been called for the current buffer
     // character
-    if(buffer.skip_character(designator_prefix) == false)
+    if(buffer.skip_character(designator_prefix) == false) {
+        std::cerr << "Expected a component definition within buffer" <<
+                std::endl;
         throw -1;
+    }
 
     // Parse the source's designator (V1, I2, etc.)
     auto source = typename SourceType::Pointer(new SourceType());
@@ -224,8 +237,7 @@ typename SourceType::Pointer Source::parse(Parse::Buffer &buffer,
     // offset
     buffer.skip_whitespace();
     if(buffer.skip_string("SINE").empty() == false) {
-        if(buffer.skip_character('(') == false)
-            throw -1;
+        buffer.skip_character('(');
 
         // As much as I would like to alphabetize these references, the gods of
         // LTSpice format have dictated that they appear in this order
@@ -254,8 +266,11 @@ typename SourceType::Pointer Source::parse(Parse::Buffer &buffer,
         }
 
         // Skip the closing bracket
-        if(buffer.skip_character(')') == false)
+        if(buffer.skip_character(')') == false) {
+            std::cerr << "Malformed power source sine wave definition" <<
+                    std::endl;
             throw -1;
+        }
     }
 
     // If the source is not sinusoidal, we want to set its constant value as
@@ -287,8 +302,10 @@ Resistor::Pointer Resistor::parse(Parse::Buffer &buffer) {
 Diode::Pointer Diode::parse(Parse::Buffer &buffer) {
 
     // Check the current buffer character is the start of a diode definition
-    if(buffer.skip_character('D') == false)
+    if(buffer.skip_character('D') == false) {
+        std::cerr << "Expected diode definition in buffer" << std::endl;
         throw -1;
+    }
 
     // Create a new diode component, and parse its designator
     auto diode = Diode::Pointer(new Diode());
@@ -303,8 +320,11 @@ Diode::Pointer Diode::parse(Parse::Buffer &buffer) {
     // The final field will only ever be 'D' (for the purposes of this
     // application), but could be different if a non-standard diode was to be
     // simulated
-    if(buffer.skip_character('D') == false)
+    if(buffer.skip_character('D') == false) {
+        std::cerr << "Expected a 'D' model specifier at the end of a diode"
+                "definition" << std::endl;
         throw -1;
+    }
 
     return diode;
 }
@@ -314,8 +334,11 @@ Transistor::Pointer Transistor::parse(Parse::Buffer &buffer) {
 
     // Check the current buffer character is the start of a transistor
     // definition
-    if(buffer.skip_character('Q') == false)
+    if(buffer.skip_character('Q') == false) {
+        std::cerr << "Expected transistor definition at current position in "
+                "buffer" << std::endl;
         throw -1;
+    }
 
     // Create a new transistor component and parse its designator
     auto transistor = Transistor::Pointer(new Transistor());
@@ -337,8 +360,11 @@ Transistor::Pointer Transistor::parse(Parse::Buffer &buffer) {
         transistor->model = NPN;
     else if(buffer.skip_string("PNP").empty() == false)
         transistor->model = PNP;
-    else
+    else {
+        std::cerr << "Expected a 'NPN' or 'PNP' model specifier at the end of "
+                "a diode definition" << std::endl;
         throw -1;
+    }
 
     return transistor;
 
@@ -379,6 +405,8 @@ Component::Pointer Component::parse(Parse::Buffer &buffer) {
         case 'V':
             return VoltageSource::parse(buffer);
         default:
+            std::cerr << "Couldn't find a component which matches the "
+                    "designator prefix" << std::endl;
             throw -1;
     };
 }

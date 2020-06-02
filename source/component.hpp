@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <locale>
 #include <memory>
 
@@ -19,6 +20,17 @@ expected to be encountered, including:
     (3) sources
         a) current sources
         b) voltage sources
+
+The base class has a few of the common features of all components, such as
+a designator, and a vector of nodes (which will have two parts, other than in
+the case of a transistor).
+
+The derived components implement static parse functions, which in combination
+with a parse buffer containing a SPICE netlist, can be used to create
+components in their intermediate forms
+
+Each component has a Type member field, which can be used to perform basic
+typecast safety checks
 */
 
 // ******************************************************** Component base class

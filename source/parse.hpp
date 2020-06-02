@@ -2,6 +2,10 @@
 
 #include <string>
 #include <vector>
+#include <fstream> // std::ifstream
+#include <sstream> // std::ostringstream
+
+#include "exception.hpp"
 
 namespace Parse {
 
@@ -19,8 +23,7 @@ std::string load_file(const std::string &name) {
     }
 
     // If the stream wasn't valid, throw an error
-    std::cerr << "Couldn't open file " << name;
-    throw -1;
+    throw FileIOError(name);
 }
 
 // ********************************************************************** Buffer
@@ -237,7 +240,7 @@ Buffer::Position Buffer::get_position() const {
 // If the line/column data doesn't match the index, an error is thrown
 void Buffer::set_position(const Position &position) {
     if(index != (line_start_indices[line] + column))
-        throw -1;
+        throw IndexError();
 
     index = position.index;
     line = position.line;
