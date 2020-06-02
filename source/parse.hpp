@@ -1,11 +1,10 @@
 #pragma once
 
+#include <fstream> // std::ifstream
+#include <iostream> // std::cerr
+#include <sstream> // std::ostringstream
 #include <string>
 #include <vector>
-#include <fstream> // std::ifstream
-#include <sstream> // std::ostringstream
-
-#include "exception.hpp"
 
 namespace Parse {
 
@@ -23,7 +22,8 @@ std::string load_file(const std::string &name) {
     }
 
     // If the stream wasn't valid, throw an error
-    throw FileIOError(name);
+    std::cerr << "Couldn't open file " << name << std::endl;
+    throw -1;
 }
 
 // ********************************************************************** Buffer
@@ -239,8 +239,11 @@ Buffer::Position Buffer::get_position() const {
 // Sets the buffer's position
 // If the line/column data doesn't match the index, an error is thrown
 void Buffer::set_position(const Position &position) {
-    if(index != (line_start_indices[line] + column))
-        throw IndexError();
+    if(index != (line_start_indices[line] + column)) {
+        std::cerr << "Couldn't set position within parse buffer, since the "
+                "index data didn't match internal data" << std::endl;
+        throw -1;
+    }
 
     index = position.index;
     line = position.line;

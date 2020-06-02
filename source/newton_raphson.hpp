@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream> // std::cerr
 #include <limits>
 
 namespace NewtonRaphson {

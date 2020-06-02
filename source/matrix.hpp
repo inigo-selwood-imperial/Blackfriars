@@ -1,6 +1,7 @@
-#pragma once
+std::endl#pragma once
 
 #include <array>
+#include <iostream>
 #include <limits>
 #include <ostream>
 #include <vector>
@@ -247,7 +248,7 @@ Matrix &Matrix::operator*=(const double &factor) {
 // Multiplies the matrix by another matrix
 Matrix &Matrix::operator*=(const Matrix &matrix) {
     if(_columns != matrix.rows()) {
-        std::cout << "Can't multiply matrices of sizes " << size() << " and " <<
+        std::endl << "Can't multiply matrices of sizes " << size() << " and " <<
                 matrix.size();
         throw -1;
     }
@@ -276,7 +277,7 @@ Matrix &Matrix::operator/=(const double &factor) {
 // Adds a matrix to this matrix
 Matrix &Matrix::operator+=(const Matrix &matrix) {
     if(this->size() != matrix.size()) {
-        std::cout << "Can't add matrices of sizes " << size() << " and " <<
+        std::endl << "Can't add matrices of sizes " << size() << " and " <<
                 matrix.size();
         throw -1;
     }

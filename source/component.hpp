@@ -1,9 +1,9 @@
 #pragma once
 
-#include <functional>
-#include <iostream>
-#include <locale>
-#include <memory>
+#include <functional> 
+#include <iostream> // std::endl
+#include <locale> // std::tolower
+#include <memory> // std::shared_ptr
 
 #include "parse.hpp"
 
