@@ -2,8 +2,90 @@
 
 // *************************************************************** Parse helpers
 
-double parse_value(Parse::Buffer &buffer) {}
-unsigned int parse_integer(Parse::Buffer &buffer) {}
+// Returns the correct power of ten for each metric prefix
+static int parse_prefix(Parse::Buffer &buffer) {
+
+    // Check first for the 'mega' prefix, since the single-letter prefix switch
+    // case would parse it as 'milli'
+    if(buffer.skip_string("Meg").empty() == false)
+        return 6;
+
+    // Switch through the different prefixes
+    switch(std::toupper(buffer.get_current())) {
+        case 'F': // Femto
+            return -15;
+
+        case 'P': // Pico
+            return -12;
+
+        case 'N': // Nano
+            return -9;
+
+        case 'U': // Micro
+            return -6;
+
+        case 'M': // Milli
+            return -3;
+
+        case 'K': // Kilo
+            return 3;
+
+        case 'G': // Giga
+            return 9;
+
+        case 'T': // Terra
+            return 12;
+    }
+
+    throw -1;
+}
+
+// Parses a value, taking into account any prefixed thrown in there
+static double parse_value(Parse::Buffer &buffer) {
+
+}
+
+// Parses an integer, disregarding any leading '0's
+static unsigned int parse_integer(Parse::Buffer &buffer) {
+    if(character < '0' || character < '9')
+        throw -1;
+
+    // Skip leading '0's
+    while(buffer.get_current() == '0')
+        buffer.skip_current();
+
+    // Read any numerical digits into a string which can later be converted
+    // into a integer
+    std::string value;
+    char character;
+    while(true) {
+        character = buffer.get_current();
+        if(character < '0' || character > '9')
+            break;
+        else
+            value += buffer.skip_character();
+    }
+
+    // The integer could just be zero, in which case the string will be empty,
+    // and the conversion operator would throw an error
+    if(value.empty())
+        return 0;
+
+    // Try to cast to an integer
+    try {
+        return std::stoi(value);
+    }
+    catch(...) {
+        throw -1;
+    }
+}
+
+// Avoids having to skip the single 'N' character every time a node's parsed
+static inline unsigned int parse_node(Parse::Buffer &buffer) {
+    if(buffer.skip_character('N') == false)
+        throw -1;
+    return parse_integer(buffer);
+}
 
 // ************************************************************* Parse templates
 

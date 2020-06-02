@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <stringstream>
+#include <locale>
 #include <memory>
 
-#include "../parse.hpp"
+#include "parse.hpp"
 
 /*
 This header file contains the definitions for all the types of components
