@@ -21,6 +21,7 @@ private:
     friend std::ostream &operator<<(std::ostream &stream,
             const Schematic &schematic) {
 
+        stream << "Component count: " << schematic._components.size() << std::endl;
         for(const auto &component : schematic._components) {
             switch(component->type) {
                 case Component::CAPACITOR:
@@ -43,6 +44,7 @@ private:
 
         _components.clear();
         while(true) {
+            std::cout << "Parsing component..." << std::endl;
             buffer.skip_whitespace();
             if(buffer.end_reached())
                 break;
