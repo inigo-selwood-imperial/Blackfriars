@@ -23,6 +23,8 @@ This source file is split into 5 parts:
         loop
 */
 
+namespace Parse {
+
 // ************************************************************ File load helper
 
 // More memory and computationally efficient than constructing a stringstream
@@ -193,3 +195,5 @@ void Buffer::set_position(const Position &position) {
     line = position.line;
     column = position.column;
 }
+
+}; // Namesapce Parse
