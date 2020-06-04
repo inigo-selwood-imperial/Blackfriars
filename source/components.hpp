@@ -1,5 +1,11 @@
 #pragma once
 
+#include <memory>
+#include <ostream>
+#include <vector>
+
+#include "parse.hpp"
+
 /* ******************************************************************** Synopsis
 
 Components are the heart of this application. Each electrical component that is
@@ -54,7 +60,6 @@ The source file is split up into 9 parts:
 
 // ******************************************************** Component definition
 
-template <typename Type>
 class Component {
 
 public:
@@ -87,6 +92,15 @@ public:
 
 };
 
+template <typename DerivedType, Component::Type type_>
+class ComponentProxy : public Component {
+
+public:
+
+    ComponentProxy() : Component(type_) {}
+
+};
+
 /* ********************************************************* Passive definitions
 
 Passive components are the simplest types of components, with only a value field
@@ -112,37 +126,34 @@ public:
 
 };
 
-class Capacitor : public Passive, public Component<Capacitor> {
+class Capacitor : public Passive,
+        public ComponentProxy<Capacitor, Component::CAPACITOR> {
 
 public:
 
-    static Capacitor parse(Parse::Buffer &buffer);
-
-    Capacitor();
+    static std::shared_ptr<Capacitor> parse(Parse::Buffer &buffer);
 
     void print(std::ostream &stream);
 
 };
 
-class Inductor : public Passive, public Component<Inductor> {
+class Inductor : public Passive,
+        public ComponentProxy<Inductor, Component::INDUCTOR> {
 
 public:
 
-    static Capacitor parse(Parse::Buffer &buffer);
-
-    Inductor();
+    static std::shared_ptr<Inductor> parse(Parse::Buffer &buffer);
 
     void print(std::ostream &stream);
 
 };
 
-class Resistor : public Passive, public Component<Resistor> {
+class Resistor : public Passive,
+        public ComponentProxy<Resistor, Component::RESISTOR> {
 
 public:
 
-    static Capacitor parse(Parse::Buffer &buffer);
-
-    Resistor();
+    static std::shared_ptr<Resistor> parse(Parse::Buffer &buffer);
 
     void print(std::ostream &stream);
 
@@ -191,25 +202,23 @@ public:
 
 };
 
-class CurrentSource : public Source, public Component<CurrentSource> {
+class CurrentSource : public Source,
+        public ComponentProxy<CurrentSource, Component::CURRENT_SOURCE> {
 
 public:
 
-    static Capacitor parse(Parse::Buffer &buffer);
-
-    CurrentSource();
+    static std::shared_ptr<CurrentSource> parse(Parse::Buffer &buffer);
 
     void print(std::ostream &stream);
 
 };
 
-class VoltageSource : public Source, public Component<VoltageSource> {
+class VoltageSource : public Source,
+        public ComponentProxy<VoltageSource, Component::VOLTAGE_SOURCE> {
 
 public:
 
-    static Capacitor parse(Parse::Buffer &buffer);
-
-    VoltageSource();
+    static std::shared_ptr<VoltageSource> parse(Parse::Buffer &buffer);
 
     void print(std::ostream &stream);
 
@@ -217,19 +226,17 @@ public:
 
 // *************************************************** Semiconductor definitions
 
-class Diode : public Component<Diode> {
+class Diode : public ComponentProxy<Diode, Component::DIODE> {
 
 public:
 
-    static Capacitor parse(Parse::Buffer &buffer);
-
-    Diode();
+    static std::shared_ptr<Diode> parse(Parse::Buffer &buffer);
 
     void print(std::ostream &stream);
 
 };
 
-class Transistor : public Component<Transistor> {
+class Transistor : public ComponentProxy<Transistor, Component::TRANSISTOR> {
 
 public:
 
@@ -242,7 +249,7 @@ public:
 
     Model model;
 
-    static Capacitor parse(Parse::Buffer &buffer);
+    static std::shared_ptr<Transistor> parse(Parse::Buffer &buffer);
 
     Transistor();
 
@@ -289,12 +296,6 @@ Passive::Passive() {
     value = 0;
 }
 
-Capacitor::Capacitor() : Component(CAPACITOR) {}
-
-Inductor::Inductor() : Inductor(INDUCTOR) {}
-
-Resistor::Resistor() : Component(RESISTOR) {}
-
 Source::Function::Function() {
     amplitude = 0;
     cycle_count = 0;
@@ -305,13 +306,7 @@ Source::Function::Function() {
     theta = 0;
 }
 
-CurrentSource::CurrentSource() : Component(CURRENT_SOURCE) {}
-
-VoltageSource::VoltageSource() : Component(VOLTAGE_SOURCE) {}
-
-Diode::Diode() : Component(DIODE) {}
-
-Transistor::Transistor() : Component(TRANSISTOR) {
+Transistor::Transistor() {
     nodes.resize(3, 0);
     model = NONE;
 }
