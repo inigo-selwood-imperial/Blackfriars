@@ -134,7 +134,7 @@ The operators are split into a few distinct functions:
 
 /* Serializes a Matrix instance to a stream, in the following form:
 
-    [ 00, 01, ..., 0n]
+    [00, 01, ..., 0n]
     [10, 11, ..., 1n]
     [20, 21, ..., 2n]
     [        ...    ]
