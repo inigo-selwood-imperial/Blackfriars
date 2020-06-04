@@ -1,23 +1,18 @@
 #pragma once
 
 #include <functional>
-#include <iostream> // std::cerr
+#include <iostream>
 #include <limits>
+
+#include <cmath>
 
 namespace NewtonRaphson {
 
-// The maximum number of iterations allowed before returning a value
 static const unsigned int iteration_bound = 50;
 
-// Constants declared here so that they needn't be called every time the
-// function is evaluated
 static const auto epsilon = std::numeric_limits<double>::epsilon();
 static const auto double_maximum = std::numeric_limits<double>::max();
 
-// Calculate the x-axis intercept of a function, given its derivative, and
-// a starting point.
-// NOTE: This function will throw an exception if the gradient at the given
-// start position is zero
 double evaluate(const std::function<double(double)> &function,
         const std::function<double(double)> &derivative,
         const double &start_point,
@@ -47,4 +42,4 @@ double evaluate(const std::function<double(double)> &function,
     return current_result;
 }
 
-}; // NewtonRaphson\
+}; // NewtonRaphson
