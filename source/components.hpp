@@ -22,7 +22,7 @@ By deriving each component from a base component class, the Simulation class
 it, and the enumerated Type field gets rid of the need for computationally
 expensive type-casting or RTTI.
 
-The source file is split up into 9 parts:
+The source file is split up into 7 parts:
 
     (1) Component definition
 
@@ -48,13 +48,6 @@ The source file is split up into 9 parts:
         The definitions of the static parse functions in each component class
 
     (7) Constructors
-
-    (8) Print templates
-        As with the parse templtes, these static functions in the base classes
-        help prevent duplicate code in their derived classes
-
-    (9) Print functions
-        The definitions of the print functions in each component class
 
 */
 
@@ -86,8 +79,6 @@ public:
 
     static unsigned int parse_node(Parse::Buffer &buffer);
 
-    static void print_node(std::ostream &stream);
-
     Component(const Type &type_);
 
 };
@@ -115,11 +106,8 @@ public:
 
     double value;
 
-    template <typename Type>
-    static std::shared_ptr<Type> parse(Parse::Buffer &buffer);
-
-    static void print(std::ostream &stream,
-            const std::shared_ptr<Passive> &passive,
+    template <typename PassiveType>
+    static std::shared_ptr<PassiveType> parse(Parse::Buffer &buffer,
             const char &designator_prefix);
 
     Passive();
@@ -133,8 +121,6 @@ public:
 
     static std::shared_ptr<Capacitor> parse(Parse::Buffer &buffer);
 
-    void print(std::ostream &stream);
-
 };
 
 class Inductor : public Passive,
@@ -144,8 +130,6 @@ public:
 
     static std::shared_ptr<Inductor> parse(Parse::Buffer &buffer);
 
-    void print(std::ostream &stream);
-
 };
 
 class Resistor : public Passive,
@@ -154,8 +138,6 @@ class Resistor : public Passive,
 public:
 
     static std::shared_ptr<Resistor> parse(Parse::Buffer &buffer);
-
-    void print(std::ostream &stream);
 
 };
 
@@ -193,11 +175,8 @@ public:
 
     Function function;
 
-    template <typename Type>
-    static std::shared_ptr<Type> parse(Parse::Buffer &buffer);
-
-    static void print(std::ostream &stream,
-            const std::shared_ptr<Source> &source,
+    template <typename SourceType>
+    static std::shared_ptr<SourceType> parse(Parse::Buffer &buffer,
             const char &designator_prefix);
 
 };
@@ -209,8 +188,6 @@ public:
 
     static std::shared_ptr<CurrentSource> parse(Parse::Buffer &buffer);
 
-    void print(std::ostream &stream);
-
 };
 
 class VoltageSource : public Source,
@@ -219,8 +196,6 @@ class VoltageSource : public Source,
 public:
 
     static std::shared_ptr<VoltageSource> parse(Parse::Buffer &buffer);
-
-    void print(std::ostream &stream);
 
 };
 
@@ -231,8 +206,6 @@ class Diode : public ComponentProxy<Diode, Component::DIODE> {
 public:
 
     static std::shared_ptr<Diode> parse(Parse::Buffer &buffer);
-
-    void print(std::ostream &stream);
 
 };
 
@@ -253,37 +226,239 @@ public:
 
     Transistor();
 
-    void print(std::ostream &stream);
-
 };
 
 // ************************************************************* Parse templates
 
-unsigned int Component::parse_node(Parse::Buffer &buffer) {}
+// Parses a node definition in the form 'Nxxx' where xxx is a natural number
+unsigned int Component::parse_node(Parse::Buffer &buffer) {
+    if(buffer.skip_character('N') == false)
+        throw -1;
 
-template <typename Type>
-std::shared_ptr<Type> Passive::parse(Parse::Buffer &buffer) {}
+    return Parse::natural_number(buffer);
+}
 
-template <typename Type>
-std::shared_ptr<Type> Source::parse(Parse::Buffer &buffer) {}
+// Parses a function, either constant or sinusoidal
+Source::Function Source::Function::parse(Parse::Buffer &buffer) {
+
+    Function function;
+
+    // The source can have either a constant value, or a sinusoidal function
+    // (for the purposes of this application). Delegate to the relevant
+    // case
+    // NOTE: For the purposes of a constant value, the source is treated as
+    // a sinusoidal one with an amplitude and frequency of zero, and a constant
+    // offset
+    buffer.skip_whitespace();
+    if(buffer.skip_string("SINE")) {
+        buffer.skip_character('(');
+
+        // As much as I would like to alphabetize these references, the gods of
+        // LTSpice format have dictated that they appear in this order
+        std::vector<std::reference_wrapper<double>> fields = {
+            function.offset,
+            function.amplitude,
+            function.frequency,
+            function.delay,
+            function.theta,
+            function.phi,
+            function.cycle_count
+        };
+
+        // The number of fields in any one sine function varies. Only the ones
+        // set will have values, those preceding it will be set to 0, and any
+        // that might have come after will be omitted. Therefore, we want to
+        // parse fields up until a non-value field is encountered (a ')'
+        // character, if the text is formatted properly)
+        for(double &field : fields) {
+            buffer.skip_whitespace();
+            const auto character = buffer.get_current();
+            if((character >= '0' && character <= '9') || character == '.')
+                field = Parse::metric_value(buffer);
+            else
+                break;
+        }
+
+        // Skip the closing bracket
+        if(buffer.skip_character(')') == false)
+            throw -1;
+    }
+
+    // If the source is not sinusoidal, we want to set its constant value as
+    // the source's DC offset.
+    else
+        function.offset = Parse::metric_value(buffer);
+
+    return function;
+}
+
+// Parses a passive component of indeterminate type
+template <typename PassiveType>
+std::shared_ptr<PassiveType> Passive::parse(Parse::Buffer &buffer,
+        const char &designator_prefix) {
+
+    if(buffer.skip_character(designator_prefix) == false)
+        throw -1;
+
+    // Create a new passive
+    auto passive = typename std::shared_ptr<PassiveType>(new PassiveType());
+    passive->designator = Parse::natural_number(buffer);
+
+    // Parse the nodes it's connected to
+    buffer.skip_whitespace();
+    passive->nodes[0] = Component::parse_node(buffer);
+    buffer.skip_whitespace();
+    passive->nodes[1] = Component::parse_node(buffer);
+
+    // Parse its value
+    buffer.skip_whitespace();
+    passive->value = Parse::metric_value(buffer);
+
+    return passive;
+}
+
+// Parses a source of indeterminate type
+template <typename SourceType>
+std::shared_ptr<SourceType> Source::parse(Parse::Buffer &buffer,
+        const char &designator_prefix) {
+
+    // Check the right function has been called for the current buffer
+    // character
+    if(buffer.skip_character(designator_prefix) == false)
+        throw -1;
+
+    // Parse the source's designator (V1, I2, etc.)
+    auto source = typename std::shared_ptr<SourceType>(new SourceType());
+    source->designator = Parse::natural_number(buffer);
+
+    // Parse the two nodes to which the source is connected (N001, etc.)
+    buffer.skip_whitespace();
+    source->nodes[0] = Component::parse_node(buffer);
+    buffer.skip_whitespace();
+    source->nodes[1] = Component::parse_node(buffer);
+
+    // Parse the source's function (constant, sinusoidal, or any number of
+    // other fancy LTSpice options which we aren't considering in this
+    // application)
+    source->function = Function::parse(buffer);
+
+    return source;
+}
 
 // ************************************************************* Parse functions
 
-std::shared_ptr<Component> Component::parse(Parse::Buffer &buffer) {}
+// Parses a component of indeterminate type
+std::shared_ptr<Component> Component::parse(Parse::Buffer &buffer) {
+    switch(buffer.get_current()) {
+        case 'C':
+            return Capacitor::parse(buffer);
 
-std::shared_ptr<Capacitor> Capacitor::parse(Parse::Buffer &buffer) {}
+        case 'L':
+            return Inductor::parse(buffer);
 
-std::shared_ptr<Inductor> Inductor::parse(Parse::Buffer &buffer) {}
+        case 'R':
+            return Resistor::parse(buffer);
 
-std::shared_ptr<Resistor> Resistor::parse(Parse::Buffer &buffer) {}
+        case 'V':
+            return VoltageSource::parse(buffer);
 
-std::shared_ptr<VoltageSource> VoltageSource::parse(Parse::Buffer &buffer) {}
+        case 'I':
+            return CurrentSource::parse(buffer);
 
-std::shared_ptr<CurrentSource> CurrentSource::parse(Parse::Buffer &buffer) {}
+        case 'D':
+            return Diode::parse(buffer);
 
-std::shared_ptr<Diode> Diode::parse(Parse::Buffer &buffer) {}
+        case 'Q':
+            return Transistor::parse(buffer);
+    }
 
-std::shared_ptr<Transistor> Transistor::parse(Parse::Buffer &buffer) {}
+    throw -1;
+}
+
+// Parses a capacitor definition
+std::shared_ptr<Capacitor> Capacitor::parse(Parse::Buffer &buffer) {
+    return Passive::parse<Capacitor>(buffer, 'C');
+}
+
+// Parses an inductor definition
+std::shared_ptr<Inductor> Inductor::parse(Parse::Buffer &buffer) {
+    return Passive::parse<Inductor>(buffer, 'L');
+}
+
+// Parses a  resistor definition
+std::shared_ptr<Resistor> Resistor::parse(Parse::Buffer &buffer) {
+    return Passive::parse<Resistor>(buffer, 'R');
+}
+
+// Parses a voltage source definition
+std::shared_ptr<VoltageSource> VoltageSource::parse(Parse::Buffer &buffer) {
+    return Source::parse<VoltageSource>(buffer, 'V');
+}
+
+// Parses a current source definition
+std::shared_ptr<CurrentSource> CurrentSource::parse(Parse::Buffer &buffer) {
+    return Source::parse<CurrentSource>(buffer, 'I');
+}
+
+// Parses a diode definition
+std::shared_ptr<Diode> Diode::parse(Parse::Buffer &buffer) {
+
+    // Check the current buffer character is the start of a diode definition
+    if(buffer.skip_character('D') == false)
+        throw -1;
+
+    // Create a new diode component, and parse its designator
+    auto diode = std::shared_ptr<Diode>(new Diode());
+    diode->designator = Parse::natural_number(buffer);
+
+    // Parse the nodes it's connected to
+    buffer.skip_whitespace();
+    diode->nodes[0] = Component::parse_node(buffer);
+    buffer.skip_whitespace();
+    diode->nodes[1] = Component::parse_node(buffer);
+
+    // The final field will only ever be 'D' (for the purposes of this
+    // application), but could be different if a non-standard diode was to be
+    // simulated
+    if(buffer.skip_character('D') == false)
+        throw -1;
+
+    return diode;
+}
+
+// Parses a transistor definition
+std::shared_ptr<Transistor> Transistor::parse(Parse::Buffer &buffer) {
+
+    // Check the current buffer character is the start of a transistor
+    // definition
+    if(buffer.skip_character('Q') == false)
+        throw -1;
+
+    // Create a new transistor component and parse its designator
+    auto transistor = std::shared_ptr<Transistor>(new Transistor());
+    transistor->designator = Parse::natural_number(buffer);
+
+    // Parse the nodes it's connected to (in the order: BCE)
+    // TODO: Check that's actually the right order, I'm just guessing
+    buffer.skip_whitespace();
+    transistor->nodes[0] = Component::parse_node(buffer);
+    buffer.skip_whitespace();
+    transistor->nodes[1] = Component::parse_node(buffer);
+    buffer.skip_whitespace();
+    transistor->nodes[2] = Component::parse_node(buffer);
+
+    // Transistors can have two different models: NPN and PNP (for the
+    // purposes of this application, in actual LTSpice netlists, there can
+    // be a model name here, eg: 2N2222).
+    if(buffer.skip_string("NPN"))
+        transistor->model = NPN;
+    else if(buffer.skip_string("PNP"))
+        transistor->model = PNP;
+    else
+        throw -1;
+
+    return transistor;
+}
 
 // **************************************************************** Constructors
 
@@ -310,30 +485,3 @@ Transistor::Transistor() {
     nodes.resize(3, 0);
     model = NONE;
 }
-
-// ************************************************************* Print templates
-
-void Component::print_node(std::ostream &stream) {}
-
-void Passive::print(std::ostream &stream,
-        const std::shared_ptr<Passive> &passive,
-        const char &designator_prefix) {}
-
-void Source::print(std::ostream &stream, const std::shared_ptr<Source> &source,
-        const char &designator_prefix) {}
-
-// ************************************************************* Print functions
-
-void Capacitor::print(std::ostream &stream) {}
-
-void Inductor::print(std::ostream &stream) {}
-
-void Resistor::print(std::ostream &stream) {}
-
-void VoltageSource::print(std::ostream &stream) {}
-
-void CurrentSource::print(std::ostream &stream) {}
-
-void Diode::print(std::ostream &stream) {}
-
-void Transistor::print(std::ostream &stream) {}
