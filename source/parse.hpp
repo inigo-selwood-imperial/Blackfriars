@@ -6,6 +6,8 @@
 
 #include <cmath>
 
+#include "log.hpp"
+
 /* ******************************************************************** Synopsis
 
 The Parse namespace encapsulates all the functions needed to parse a text file.
@@ -357,7 +359,7 @@ static inline int parse_metric_symbol(Buffer &buffer) {
             return 12;
     }
 
-    std::cerr << "Couldn't recognize metric symbol" << std::endl;
+    Log::error() << "Couldn't recognize metric symbol" << std::endl;
     throw -1;
 }
 
@@ -368,7 +370,7 @@ int integer(Buffer &buffer) {
         value += buffer.skip_current();
 
     if(value.empty()) {
-        std::cerr << "Expected integer" << std::endl;
+        Log::error() << "Expected integer" << std::endl;
         throw -1;
     }
 
@@ -382,7 +384,7 @@ unsigned int natural_number(Buffer &buffer) {
         value += buffer.skip_current();
 
     if(value.empty()) {
-        std::cerr << "Expected natural number" << std::endl;
+        Log::error() << "Expected natural number" << std::endl;
         throw -1;
     }
 
@@ -396,7 +398,7 @@ double number(Buffer &buffer) {
         value += buffer.skip_current();
 
     if(value.empty()) {
-        std::cerr << "Expected number" << std::endl;
+        Log::error() << "Expected number" << std::endl;
         throw -1;
     }
 
@@ -435,7 +437,7 @@ Buffer::Position Buffer::get_position() const {
 // If the line/column data doesn't match the index, an error is thrown
 void Buffer::set_position(const Position &position) {
     if(_index != (_line_start_indices[_line] + _column)) {
-        std::cerr << "Couldn't set position within parse buffer, since the "
+        Log::error() << "Couldn't set position within parse buffer, since the "
                 "index data didn't match internal data" << std::endl;
         throw -1;
     }

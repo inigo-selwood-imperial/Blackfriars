@@ -4,6 +4,7 @@
 #include <ostream>
 #include <vector>
 
+#include "log.hpp"
 #include "parse.hpp"
 
 /* ******************************************************************** Synopsis
@@ -232,8 +233,13 @@ public:
 
 // Parses a node definition in the form 'Nxxx' where xxx is a natural number
 unsigned int Component::parse_node(Parse::Buffer &buffer) {
-    if(buffer.skip_character('N') == false)
+    if(buffer.skip_character('0'))
+        return 0;
+    else if(buffer.skip_character('N') == false) {
+        Log::error() << "Expected a node definition " <<
+                buffer.get_position() << std::endl;
         throw -1;
+    }
 
     return Parse::natural_number(buffer);
 }
@@ -280,8 +286,11 @@ Source::Function Source::Function::parse(Parse::Buffer &buffer) {
         }
 
         // Skip the closing bracket
-        if(buffer.skip_character(')') == false)
+        if(buffer.skip_character(')') == false) {
+            Log::error() << "Malformed source sine function " <<
+                    buffer.get_position() << std::endl;
             throw -1;
+        }
     }
 
     // If the source is not sinusoidal, we want to set its constant value as
@@ -297,8 +306,11 @@ template <typename PassiveType>
 std::shared_ptr<PassiveType> Passive::parse(Parse::Buffer &buffer,
         const char &designator_prefix) {
 
-    if(buffer.skip_character(designator_prefix) == false)
+    if(buffer.skip_character(designator_prefix) == false) {
+        Log::error() << "Expected a passive definition " <<
+                buffer.get_position() << std::endl;
         throw -1;
+    }
 
     // Create a new passive
     auto passive = typename std::shared_ptr<PassiveType>(new PassiveType());
@@ -324,8 +336,11 @@ std::shared_ptr<SourceType> Source::parse(Parse::Buffer &buffer,
 
     // Check the right function has been called for the current buffer
     // character
-    if(buffer.skip_character(designator_prefix) == false)
+    if(buffer.skip_character(designator_prefix) == false) {
+        Log::error() << "Expected a source definition " <<
+                buffer.get_position() << std::endl;
         throw -1;
+    }
 
     // Parse the source's designator (V1, I2, etc.)
     auto source = typename std::shared_ptr<SourceType>(new SourceType());
@@ -372,6 +387,8 @@ std::shared_ptr<Component> Component::parse(Parse::Buffer &buffer) {
             return Transistor::parse(buffer);
     }
 
+    Log::error() << "Expected a component definition " <<
+            buffer.get_position() << std::endl;
     throw -1;
 }
 
@@ -404,8 +421,11 @@ std::shared_ptr<CurrentSource> CurrentSource::parse(Parse::Buffer &buffer) {
 std::shared_ptr<Diode> Diode::parse(Parse::Buffer &buffer) {
 
     // Check the current buffer character is the start of a diode definition
-    if(buffer.skip_character('D') == false)
+    if(buffer.skip_character('D') == false) {
+        Log::error() << "Expected a diode definition " <<
+                buffer.get_position() << std::endl;
         throw -1;
+    }
 
     // Create a new diode component, and parse its designator
     auto diode = std::shared_ptr<Diode>(new Diode());
@@ -420,8 +440,12 @@ std::shared_ptr<Diode> Diode::parse(Parse::Buffer &buffer) {
     // The final field will only ever be 'D' (for the purposes of this
     // application), but could be different if a non-standard diode was to be
     // simulated
-    if(buffer.skip_character('D') == false)
+    if(buffer.skip_character('D') == false) {
+        Log::error() << "Diode definitions should end with a model name 'D' " <<
+                buffer.get_position() << std::endl;
+                std::endl;
         throw -1;
+    }
 
     return diode;
 }
@@ -431,8 +455,11 @@ std::shared_ptr<Transistor> Transistor::parse(Parse::Buffer &buffer) {
 
     // Check the current buffer character is the start of a transistor
     // definition
-    if(buffer.skip_character('Q') == false)
+    if(buffer.skip_character('Q') == false) {
+        Log::error() << "Expected a transistor definition " <<
+                buffer.get_position() << std::endl;
         throw -1;
+    }
 
     // Create a new transistor component and parse its designator
     auto transistor = std::shared_ptr<Transistor>(new Transistor());
@@ -454,8 +481,11 @@ std::shared_ptr<Transistor> Transistor::parse(Parse::Buffer &buffer) {
         transistor->model = NPN;
     else if(buffer.skip_string("PNP"))
         transistor->model = PNP;
-    else
+    else {
+        Log::error() << "Transistor definitions should end with a model "
+                "name " << buffer.get_position() << std::endl;
         throw -1;
+    }
 
     return transistor;
 }

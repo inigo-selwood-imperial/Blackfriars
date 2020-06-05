@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "complex.hpp"
+#include "log.hpp"
 
 /* ******************************************************************** Synopsis
 
@@ -206,17 +207,17 @@ Matrix Matrix::operator()(const unsigned int &column_one,
     // Check the left-uppermost corner of this submatrix doesn't extend
     // underneath or to the right of the right-lowermost corner
     if(column_one > column_two || row_one > row_two) {
-        std::cerr << "Can't get submatrix with corners (" << row_one << ", " <<
-                column_one << "), (" << row_two << ", " << column_two << ")" <<
-                std::endl;
+        Log::error() << "Can't get submatrix with corners (" << row_one <<
+                ", " << column_one << "), (" << row_two << ", " << column_two <<
+                ")" << std::endl;
         throw -1;
     }
 
     // Check the submatrix bounds don't extend beyond the size of this matrix
     else if(column_two > _columns || row_two > _rows) {
-        std::cerr << "Can't get submatrix with rightmost edge (" << row_two <<
-                ", " << column_two << ") from a matrix with size " << size() <<
-                std::endl;
+        Log::error() << "Can't get submatrix with rightmost edge (" <<
+                row_two << ", " << column_two << ") from a matrix with size " <<
+                size() << std::endl;
         throw -1;
     }
 
@@ -262,8 +263,8 @@ Matrix operator+(const Matrix &one, const Matrix &two) {
 // Subtracts a matrix from this instance
 Matrix &Matrix::operator-=(const Matrix &matrix) {
     if(this->size() != matrix.size()) {
-        std::cerr << "Can't add matrices of sizes " << size() << " and " <<
-                matrix.size();
+        Log::error() << "Can't add matrices of sizes " << size() << " and " <<
+                matrix.size() << std::endl;
         throw -1;
     }
 
@@ -282,8 +283,8 @@ Matrix &Matrix::operator*=(const double &factor) {
 // Multiplies this instance by a matrix
 Matrix &Matrix::operator*=(const Matrix &matrix) {
     if(_columns != matrix.rows()) {
-        std::cerr << "Can't multiply matrices of sizes " << size() << " and " <<
-                matrix.size();
+        Log::error() << "Can't multiply matrices of sizes " << size() <<
+                " and " << matrix.size() << std::endl;
         throw -1;
     }
 
@@ -311,8 +312,8 @@ Matrix &Matrix::operator/=(const double &factor) {
 // Adds a matrix to this instance
 Matrix &Matrix::operator+=(const Matrix &matrix) {
     if(this->size() != matrix.size()) {
-        std::cerr << "Can't add matrices of sizes " << size() << " and " <<
-                matrix.size();
+        Log::error() << "Can't add matrices of sizes " << size() << " and " <<
+                matrix.size() << std::endl;
         throw -1;
     }
 
@@ -368,7 +369,7 @@ Matrix &Matrix::remove_column(const unsigned int &column) {
 
     // Check the column index provided actually lies within the matrix
     if(column >= _columns) {
-        std::cerr << "Can't remove column " << column << " from a matrix of "
+        Log::error() << "Can't remove column " << column << " from a matrix of "
                 "size " << size() << std::endl;
         throw -1;
     }
@@ -401,8 +402,8 @@ Matrix &Matrix::remove_row(const unsigned int &row) {
 
     // Check the column index provided actually lies within the matrix
     if(row >= _rows) {
-        std::cerr << "Can't remove row " << row << " from a matrix of size " <<
-                size() << std::endl;
+        Log::error() << "Can't remove row " << row << " from a matrix of "
+                "size " << size() << std::endl;
         throw -1;
     }
 
@@ -475,7 +476,7 @@ Complex Matrix::determinant() const {
 
     // Only square matrices can have their determinants evaluated
     if(_columns != _rows) {
-        std::cerr << "Can't get the determinant of a non-square matrix " <<
+        Log::error() << "Can't get the determinant of a non-square matrix " <<
                 size() << std::endl;
         throw -1;
     }
@@ -556,8 +557,8 @@ Matrix Matrix::cofactor() const {
 
     // Check the matrix is square
     if(_columns != _rows) {
-        std::cerr << "Can't create cofactor matrix of a non-square matrix " <<
-                size() << std::endl;
+        Log::error() << "Can't create cofactor matrix of a non-square "
+                "matrix, of size " << size() << std::endl;
         throw -1;
     }
 
@@ -585,7 +586,7 @@ Matrix Matrix::inverse() const {
 
     // Check the matrix is square
     if(_rows != _columns) {
-        std::cerr << "Can't create inverse matrix of a non-square matrix " <<
+        Log::error() << "Can't create inverse matrix of a non-square matrix " <<
                 size() << std::endl;
         throw -1;
     }
@@ -594,7 +595,7 @@ Matrix Matrix::inverse() const {
     // division-by-zero error)
     auto _determinant = this->determinant();
     if(_determinant == 0) {
-        std::cerr << "Can't get inverse of matrix with a zero determinant" <<
+        Log::error() << "Can't get inverse of matrix with a zero determinant" <<
                 std::endl;
         throw -1;
     }
@@ -662,7 +663,7 @@ unsigned int Matrix::offset(const unsigned int &row, const unsigned int &column)
 
     unsigned int result = (row * _columns) + column;
     if(result > (_columns * _rows)) {
-        std::cerr << "Can't access element at (" << row << ", " << column <<
+        Log::error() << "Can't access element at (" << row << ", " << column <<
                 ") from a matrix of size " << size() << " (offset = " <<
                 result << ")" << std::endl;
         throw -1;
