@@ -443,7 +443,6 @@ std::shared_ptr<Diode> Diode::parse(Parse::Buffer &buffer) {
     if(buffer.skip_character('D') == false) {
         Log::error() << "Diode definitions should end with a model name 'D' " <<
                 buffer.get_position() << std::endl;
-                std::endl;
         throw -1;
     }
 
