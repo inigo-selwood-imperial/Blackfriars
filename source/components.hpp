@@ -70,13 +70,15 @@ public:
         TRANSISTOR
     };
 
+    typedef std::shared_ptr<Component> Pointer;
+
     Type type;
 
     unsigned int designator;
 
     std::vector<unsigned int> nodes;
 
-    static std::shared_ptr<Component> parse(Parse::Buffer &buffer);
+    static Pointer parse(Parse::Buffer &buffer);
 
     static unsigned int parse_node(Parse::Buffer &buffer);
 
@@ -363,7 +365,7 @@ std::shared_ptr<SourceType> Source::parse(Parse::Buffer &buffer,
 // ************************************************************* Parse functions
 
 // Parses a component of indeterminate type
-std::shared_ptr<Component> Component::parse(Parse::Buffer &buffer) {
+Component::Pointer Component::parse(Parse::Buffer &buffer) {
     switch(buffer.get_current()) {
         case 'C':
             return Capacitor::parse(buffer);
