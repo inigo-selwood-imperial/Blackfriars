@@ -1,8 +1,10 @@
 #pragma once
 
+#include <fstream>
+#include <streambuf>
 #include <string>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
 #include <cmath>
 
@@ -59,15 +61,15 @@ The source file is split into 9 parts:
         This way, the function will return 'false', if the character/text isn't
         present.
 
-    (8) Parse helpers
-        These functions make it easier to extract fields from the text, such as
-        integers, values in scientific notation, metric values, etc.
-
-    (9) Position helpers
+    (8) Position helpers
         These functions allow you to change the index's position within the
         buffer, or get a position struct with information about this current
         position. This position class has an std::ostream print operator, which
         neatly serializes the line and column data
+
+    (9) Parse helpers
+        These functions make it easier to extract fields from the text, such as
+        integers, values in scientific notation, metric values, etc.
 
 */
 
@@ -75,7 +77,20 @@ The source file is split into 9 parts:
 
 namespace Parse {
 
-std::string load_file(const std::string &file_name);
+std::string load_file(const std::string &file_name) {
+//     std::ifstream t("file.txt");
+// std::string str((std::istreambuf_iterator<char>(t)),
+//                  std::istreambuf_iterator<char>());
+
+    std::ifstream stream(file_name);
+    if(stream.is_open() == false || stream.good() == false) {
+        Log::error() << "Couldn't open file " << file_name << std::endl;
+        throw -1;
+    }
+
+    return std::string((std::istreambuf_iterator<char>(stream)),
+            std::istreambuf_iterator<char>());
+}
 
 enum Whitespace {
     COMMENTS,
@@ -128,14 +143,16 @@ public:
     void skip_whitespace(const int flags);
     bool skip_string(const std::string &text);
 
-    Buffer::Position Buffer::get_position() const;
-    void Buffer::set_position(const Position &position);
+    Buffer::Position get_position() const;
+    void set_position(const Position &position);
 
 };
 
 // ************************************************************** Print operator
 
-std::ostream &operator(std::ostream &stream, const Buffer::Position &position) {
+std::ostream &operator<<(std::ostream &stream,
+        const Buffer::Position &position) {
+
     return stream << "line " << position.line << " column " << position.column;
 }
 
@@ -297,6 +314,28 @@ bool Buffer::skip_string(const std::string &text) {
     return false;
 }
 
+// ************************************************************ Position helpers
+
+// Gets the buffer's position
+// Position data includes the column, line, and current index
+Buffer::Position Buffer::get_position() const {
+    return Position(_index, _line + 1, _column + 1);
+}
+
+// Sets the buffer's position
+// If the line/column data doesn't match the index, an error is thrown
+void Buffer::set_position(const Position &position) {
+    if(_index != (_line_start_indices[_line] + _column)) {
+        Log::error() << "Couldn't set position within parse buffer, since the "
+                "index data didn't match internal data" << std::endl;
+        throw -1;
+    }
+
+    _index = position.index;
+    _line = position.line;
+    _column = position.column;
+}
+
 /* *************************************************************** Parse helpers
 
 The parse helpers are designed to help classes using the Parse::Buffer class to
@@ -314,8 +353,9 @@ static bool is_integer(const char &character) {
     return (character >= '0' && character <= '9') || character == '-';
 }
 
+// NOTE: The '┬' character is part of a multi-character mu
 static const std::unordered_set<char> metric_prefixes = {'f', 'p', 'n', 'u',
-        'm', 'k', 'M', 'g', 't'};
+        -62, 'm', 'k', 'M', 'g', 't'};
 
 // True if the character is a metric prefix symbol (micro 'u', nano 'n', etc.)
 // NOTE: This isn't 100% reliable in the case of the "Meg" prefix
@@ -340,7 +380,13 @@ static inline int parse_metric_symbol(Buffer &buffer) {
     if(buffer.skip_string("Meg"))
         return 6;
 
-    switch(buffer.skip_current()) {
+    // Although the LTSpice specification claims that the letter 'u' is used to
+    // denote micro, it also seems to use the compound UTF-8 'mu'
+    if(buffer.skip_string({-62, -75}))
+        return -6;
+
+    auto character = buffer.skip_current();
+    switch(character) {
         case 'f':
             return -15;
         case 'p':
@@ -359,7 +405,8 @@ static inline int parse_metric_symbol(Buffer &buffer) {
             return 12;
     }
 
-    Log::error() << "Couldn't recognize metric symbol" << std::endl;
+    Log::error() << "Couldn't recognize metric symbol '" << character << "' " <<
+            buffer.get_position() << std::endl;
     throw -1;
 }
 
@@ -370,7 +417,8 @@ int integer(Buffer &buffer) {
         value += buffer.skip_current();
 
     if(value.empty()) {
-        Log::error() << "Expected integer" << std::endl;
+        Log::error() << "Expected integer " << buffer.get_position() <<
+                std::endl;
         throw -1;
     }
 
@@ -384,7 +432,8 @@ unsigned int natural_number(Buffer &buffer) {
         value += buffer.skip_current();
 
     if(value.empty()) {
-        Log::error() << "Expected natural number" << std::endl;
+        Log::error() << "Expected natural number " << buffer.get_position() <<
+                std::endl;
         throw -1;
     }
 
@@ -398,7 +447,8 @@ double number(Buffer &buffer) {
         value += buffer.skip_current();
 
     if(value.empty()) {
-        Log::error() << "Expected number" << std::endl;
+        Log::error() << "Expected number " << buffer.get_position() <<
+                std::endl;
         throw -1;
     }
 
@@ -423,28 +473,6 @@ double metric_value(Buffer &buffer) {
         string_value += buffer.skip_current();
 
     return std::stof(string_value) * std::pow(10, factor);
-}
-
-// ************************************************************ Position helpers
-
-// Gets the buffer's position
-// Position data includes the column, line, and current index
-Buffer::Position Buffer::get_position() const {
-    return Position(_index, _line + 1, _column + 1);
-}
-
-// Sets the buffer's position
-// If the line/column data doesn't match the index, an error is thrown
-void Buffer::set_position(const Position &position) {
-    if(_index != (_line_start_indices[_line] + _column)) {
-        Log::error() << "Couldn't set position within parse buffer, since the "
-                "index data didn't match internal data" << std::endl;
-        throw -1;
-    }
-
-    _index = position.index;
-    _line = position.line;
-    _column = position.column;
 }
 
 }; // Namespace Parse
