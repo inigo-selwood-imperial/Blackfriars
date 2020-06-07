@@ -8,4 +8,6 @@ R3 0 N003 22k
 C2 N004 N003 10n
 R4 0 N004 1k2
 
+.tran 0 10ms 0 1us
+
 .end

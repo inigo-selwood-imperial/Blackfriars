@@ -77,21 +77,6 @@ The source file is split into 9 parts:
 
 namespace Parse {
 
-std::string load_file(const std::string &file_name) {
-//     std::ifstream t("file.txt");
-// std::string str((std::istreambuf_iterator<char>(t)),
-//                  std::istreambuf_iterator<char>());
-
-    std::ifstream stream(file_name);
-    if(stream.is_open() == false || stream.good() == false) {
-        Log::error() << "Couldn't open file " << file_name << std::endl;
-        throw -1;
-    }
-
-    return std::string((std::istreambuf_iterator<char>(stream)),
-            std::istreambuf_iterator<char>());
-}
-
 enum Whitespace {
     COMMENTS,
     NEWLINES,
@@ -133,15 +118,15 @@ public:
     Buffer(const std::string &text);
 
     char get_current() const;
-    char get_next() const;
     bool get_string(const std::string &text) const;
 
     bool end_reached() const;
 
-    char skip_current();
     char skip_character(const char &character);
-    void skip_whitespace(const int flags);
+    char skip_current();
+    void skip_line();
     bool skip_string(const std::string &text);
+    void skip_whitespace(const int flags);
 
     Buffer::Position get_position() const;
     void set_position(const Position &position);
@@ -241,11 +226,6 @@ char Buffer::get_current() const {
     return _index < _length ? _text[_index] : 0;
 }
 
-// Gets the next charcter in the text
-char Buffer::get_next() const {
-    return ((_index + 1) < _length) ? _text[_index + 1] : 0;
-}
-
 // Returns true if the string provided is encountered at the current position
 // in the text
 bool Buffer::get_string(const std::string &text) const {
@@ -261,6 +241,13 @@ bool Buffer::end_reached() const {
 
 // ************************************************************** Skip functions
 
+// Skips the current character in the text, if it matches a given character
+char Buffer::skip_character(const char &character) {
+    if(get_current() == character)
+        return skip_current();
+    return 0;
+}
+
 // Returns the character at the current index, skipping past it
 char Buffer::skip_current() {
     auto value = get_current();
@@ -268,11 +255,10 @@ char Buffer::skip_current() {
     return value;
 }
 
-// Skips the current character in the text, if it matches a given character
-char Buffer::skip_character(const char &character) {
-    if(get_current() == character)
-        return skip_current();
-    return 0;
+// Skips the current line
+void Buffer::skip_line() {
+    while(_text[_index] != '\n' && _index < _length)
+        _index += 1;
 }
 
 // Skips whitespace, returning the characters skipped as a string, optionally
@@ -416,11 +402,8 @@ int integer(Buffer &buffer) {
     while(is_integer(buffer.get_current()))
         value += buffer.skip_current();
 
-    if(value.empty()) {
-        Log::error() << "Expected integer " << buffer.get_position() <<
-                std::endl;
+    if(value.empty())
         throw -1;
-    }
 
     return std::stoi(value);
 }
@@ -431,11 +414,8 @@ unsigned int natural_number(Buffer &buffer) {
     while(is_natural_number(buffer.get_current()))
         value += buffer.skip_current();
 
-    if(value.empty()) {
-        Log::error() << "Expected natural number " << buffer.get_position() <<
-                std::endl;
+    if(value.empty())
         throw -1;
-    }
 
     return std::stoi(value);
 }
@@ -446,33 +426,46 @@ double number(Buffer &buffer) {
     while(is_number(buffer.get_current()))
         value += buffer.skip_current();
 
-    if(value.empty()) {
-        Log::error() << "Expected number " << buffer.get_position() <<
-                std::endl;
+    if(value.empty())
         throw -1;
-    }
 
     return std::stof(value);
 }
 
 // Parse a metric value, as used in electrical component values
 double metric_value(Buffer &buffer) {
-    std::string string_value;
+    std::string value;
 
-    while(is_number(buffer.get_current()))
-        string_value += buffer.skip_current();
+    while(is_number(buffer.get_current()) && buffer.end_reached() == false)
+        value += buffer.skip_current();
 
     auto factor = 0;
-    if(is_metric_symbol(buffer.get_current()))
+    if(is_metric_symbol(buffer.get_current()) && buffer.end_reached() == false)
         factor = parse_metric_symbol(buffer);
 
-    if(is_number(buffer.get_current()) && factor)
-        string_value += ".";
+    if(is_number(buffer.get_current()) && factor &&
+            buffer.end_reached() == false) {
 
-    while(is_number(buffer.get_current()))
-        string_value += buffer.skip_current();
+        value += ".";
+    }
 
-    return std::stof(string_value) * std::pow(10, factor);
+    while(is_number(buffer.get_current()) && buffer.end_reached() == false)
+        value += buffer.skip_current();
+
+    if(value.empty())
+        throw -1;
+
+    return std::stof(value) * std::pow(10, factor);
+}
+
+std::string token(Parse::Buffer &buffer, const char end_character = ' ') {
+    std::string result;
+    while((buffer.get_current() != end_character) &&
+            (buffer.end_reached() == false)) {
+
+        result += buffer.skip_current();
+    }
+    return result;
 }
 
 }; // Namespace Parse

@@ -6,41 +6,11 @@
 #include <ostream>
 #include <vector>
 
-#include "complex.hpp"
 #include "log.hpp"
 
 /* ******************************************************************** Synopsis
 
-The Matrix class is used within the source for voltage calculations within the
-Simulation class. It represents a classic two-dimensional matrix, which uses
-row-major order indexing, and stores each value as an instance of the Complex
-class. This was originally to support complex impedances of components, but on
-reflection it became clear this functionality was no longer needed. This aspect
-of the class will likely be removed, if time allows for it.
-
-The source file is split up into 3 parts:
-
-    (1) Definition
-        Outline of the Matrix class and its methods
-
-    (2) Operators
-        Arithmetic and equivalence operator overrides
-
-    (3) Constructors
-
-    (4) Size management helpers
-        Allow restructuring of the matrix's size, adding/removing columns and
-        rows, or re-setting the matrix's values
-
-    (5) Advanced matrix functions
-        Helps with complex operations like calculating the derivative, cofactor,
-        adjugant, etc.
-
-    (6) Characteristic access methods
-        Used for getting the matrix's width, height, volume etc.
-
-    (7) Index/offset helpers
-        Convert between row-major order indices, and integer offsets
+TODO: Write
 
 */
 
@@ -50,11 +20,24 @@ class Matrix {
 
 public:
 
-    typedef std::array<unsigned int, 2> Size;
-    typedef std::array<unsigned int, 2> Index;
+    struct Index : public std::array<unsigned int, 2> {
 
-    Complex &operator()(const unsigned int &column, const unsigned int &row);
-    Complex operator()(const unsigned int &column, const unsigned int &row)
+        Index() {}
+        Index(const std::initializer_list<unsigned int> &values);
+        Index(const unsigned int &row, const unsigned int &column);
+
+    };
+
+    struct Size : public std::array<unsigned int, 2> {
+
+        Size() {}
+        Size(const std::initializer_list<unsigned int> &values);
+        Size(const unsigned int &columns, const unsigned int &rows);
+
+    };
+
+    double &operator()(const unsigned int &column, const unsigned int &row);
+    double operator()(const unsigned int &column, const unsigned int &row)
             const;
     Matrix operator()(const unsigned int &column_one,
             const unsigned int &row_one, const unsigned int &column_two,
@@ -70,8 +53,8 @@ public:
     friend bool operator-=(const Matrix &one, const Matrix &two);
 
     Matrix();
-    Matrix(const Complex &value);
-    Matrix(const std::initializer_list<std::vector<Complex>> &values);
+    Matrix(const double &value);
+    Matrix(const std::initializer_list<std::vector<double>> &values);
     Matrix(const unsigned int &rows, const unsigned int &columns);
 
     Matrix &remove_column(const unsigned int &column);
@@ -79,7 +62,7 @@ public:
     void clear();
     void resize(const unsigned int &rows, const unsigned int &columns);
 
-    Complex determinant() const;
+    double determinant() const;
     Matrix adjugate() const;
     Matrix cofactor() const;
     Matrix inverse() const;
@@ -92,7 +75,7 @@ public:
 
 private:
 
-    std::vector<Complex> _values;
+    std::vector<double> _values;
 
     unsigned int _columns;
     unsigned int _rows;
@@ -107,6 +90,8 @@ private:
 std::ostream &operator<<(std::ostream &stream, const Matrix &matrix);
 std::ostream &operator<<(std::ostream &stream,
         const Matrix::Index &index);
+std::ostream &operator<<(std::ostream &stream,
+        const Matrix::Size &size);
 
 bool operator!=(const Matrix &one, const Matrix &two);
 bool operator==(const Matrix &one, const Matrix &two);
@@ -142,11 +127,10 @@ The operators are split into a few distinct functions:
     [m0, m1, ..., mn]
 
 */
-std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {
-    const unsigned int columns = matrix.columns();
+std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {    
+    const auto columns = matrix.columns();
     for(unsigned int row = 0; row < matrix.rows(); row += 1) {
         stream << "[";
-
         for(unsigned int column = 0; column < columns; column += 1) {
             stream << matrix(row, column);
             if((column + 1) < columns)
@@ -163,6 +147,14 @@ std::ostream &operator<<(std::ostream &stream,
         const Matrix::Index &index) {
 
     return stream << "(" << index[0] << ", " << index[1] << ")";
+}
+
+
+// Serializes a Matrix::Size to a stream, in the form: (columns, rows)
+std::ostream &operator<<(std::ostream &stream,
+        const Matrix::Size &size) {
+
+    return stream << "(" << size[0] << ", " << size[1] << ")";
 }
 
 // True if the two matrices aren't equal in size and values
@@ -186,23 +178,23 @@ bool operator==(const Matrix &one, const Matrix &two) {
 }
 
 // Returns the value at a given column and row index
-Complex &Matrix::operator()(const unsigned int &column,
-        const unsigned int &row) {
+double &Matrix::operator()(const unsigned int &row,
+        const unsigned int &column) {
 
     return _values[offset(row, column)];
 }
 
 // Retusn a copy of the value at a given column and row index
-Complex Matrix::operator()(const unsigned int &column, const unsigned int &row)
+double Matrix::operator()(const unsigned int &row, const unsigned int &column)
         const {
 
     return _values[offset(row, column)];
 }
 
 // Returns a submatrix between two indices, one and two
-Matrix Matrix::operator()(const unsigned int &column_one,
-        const unsigned int &row_one, const unsigned int &column_two,
-        const unsigned int &row_two) const {
+Matrix Matrix::operator()(const unsigned int &row_one,
+        const unsigned int &column_one, const unsigned int &row_two,
+        const unsigned int &column_two) const {
 
     // Check the left-uppermost corner of this submatrix doesn't extend
     // underneath or to the right of the right-lowermost corner
@@ -291,7 +283,7 @@ Matrix &Matrix::operator*=(const Matrix &matrix) {
     Matrix result(_rows, matrix.columns());
     for(unsigned int row = 0; row < _rows; row += 1) {
         for(unsigned int column = 0; column < matrix.columns(); column += 1) {
-            Complex sum = 0;
+            double sum = 0;
             for(unsigned int index = 0; index < _columns; index += 1)
                 sum += (*this)(row, index) * matrix(index, column);
             result(row, column) = sum;
@@ -324,17 +316,57 @@ Matrix &Matrix::operator+=(const Matrix &matrix) {
 
 // **************************************************************** Constructors
 
+Matrix::Index::Index(const unsigned int &row,
+        const unsigned int &column) {
+
+    (*this)[0] = row;
+    (*this)[1] = column;
+}
+
+Matrix::Index::Index(
+        const std::initializer_list<unsigned int> &values) {
+
+    if(values.size() != 2)
+        throw -1;
+
+    unsigned int index = 0;
+    for(const auto &value : values) {
+        (*this)[index] = value;
+        index += 1;
+    }
+}
+
+Matrix::Size::Size(const unsigned int &columns,
+        const unsigned int &rows) {
+
+    (*this)[0] = columns;
+    (*this)[1] = rows;
+}
+
+Matrix::Size::Size(
+        const std::initializer_list<unsigned int> &values) {
+
+    if(values.size() != 2)
+        throw -1;
+
+    unsigned int index = 0;
+    for(const auto &value : values) {
+        (*this)[index] = value;
+        index += 1;
+    }
+}
+
 Matrix::Matrix() {
     _columns = 0;
     _rows = 0;
 }
 
-Matrix::Matrix(const Complex &value) {
+Matrix::Matrix(const double &value) {
     resize(1, 1);
     _values[0] = value;
 }
 
-Matrix::Matrix(const std::initializer_list<std::vector<Complex>> &values) {
+Matrix::Matrix(const std::initializer_list<std::vector<double>> &values) {
 
     // Evaluate the number of rows and columns (it's permitted to leave some
     // columns blank, the number of columns in the largest row is taken to be
@@ -358,7 +390,7 @@ Matrix::Matrix(const std::initializer_list<std::vector<Complex>> &values) {
     }
 }
 
-Matrix::Matrix(const unsigned int &rows, const unsigned int &columns) {
+Matrix::Matrix(const unsigned int &columns, const unsigned int &rows) {
     resize(columns, rows);
 }
 
@@ -437,7 +469,7 @@ void Matrix::clear() {
 
 // Resizes a matrix, copying over the values whose indices overlap between the
 // old, and the resized matrix
-void Matrix::resize(const unsigned int &rows, const unsigned int &columns) {
+void Matrix::resize(const unsigned int &columns, const unsigned int &rows) {
 
     // If the resize function is called by the constructor, then the values
     // field will be empty. This being the case, the matrix's old values don't
@@ -472,7 +504,7 @@ void Matrix::resize(const unsigned int &rows, const unsigned int &columns) {
 // *************************************************** Advanced matrix functions
 
 // Calculates the matrix's determinant
-Complex Matrix::determinant() const {
+double Matrix::determinant() const {
 
     // Only square matrices can have their determinants evaluated
     if(_columns != _rows) {
@@ -529,7 +561,7 @@ Complex Matrix::determinant() const {
 
     // Calculate the determinant of the matrix as described in the function
     // description
-    Complex result = 1;
+    double result = 1;
     for(unsigned int offset = 0; offset < size; offset += 1) {
         result *= lower_matrix(offset, offset);
         result *= upper_matrix(offset, offset);
@@ -540,11 +572,7 @@ Complex Matrix::determinant() const {
     // mean that printing the value would look strange, so I've added this
     // section to round values within the double data type's epsilon range to 0.
     const auto epsilon = std::numeric_limits<double>::epsilon();
-    result.real_part = (std::fabs(result.real_part - 0.0) >= epsilon) ?
-            result.real_part : 0;
-    result.imaginary_part = (std::fabs(result.imaginary_part - 0.0) >=
-            epsilon) ? result.imaginary_part : 0;
-    return result;
+    return (std::fabs(result - 0.0) >= epsilon) ? result : 0;
 }
 
 // Calculates the matrix's adjugant
@@ -627,7 +655,7 @@ Matrix Matrix::transpose() const {
 
 // Retusn a Matrix::Size instance, containing the values {width, height}
 Matrix::Size Matrix::size() const {
-    return {_rows, _columns};
+    return {_columns, _rows};
 }
 
 // Returns the number of columns in the matrix (its width)
@@ -649,7 +677,7 @@ unsigned int Matrix::volume() const {
 
 // Returns the index representing a row-major order offset
 Matrix::Index Matrix::index(const unsigned int &offset) const {
-    return Index({offset / _rows, offset % _columns});
+    return Index() = {offset / _rows, offset % _columns};
 }
 
 // Returns the row-major offset corresponding to an index
@@ -663,9 +691,10 @@ unsigned int Matrix::offset(const unsigned int &row, const unsigned int &column)
 
     unsigned int result = (row * _columns) + column;
     if(result > (_columns * _rows)) {
-        Log::error() << "Can't access element at (" << row << ", " << column <<
-                ") from a matrix of size " << size() << " (offset = " <<
-                result << ")" << std::endl;
+        Index index(row, column);
+        Log::error() << "Can't access element at " << index << " from a matrix "
+                "of size " << size() << " (offset = " << result << ")" <<
+                std::endl;
         throw -1;
     }
     return result;
