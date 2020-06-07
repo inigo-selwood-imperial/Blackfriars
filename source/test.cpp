@@ -1,7 +1,14 @@
 #include <iostream>
+#include <string>
+#include <map>
+
+#include "matrix.hpp"
 
 int main() {
-    std::string thing = "§";
-    std::cout << thing.length() << std::endl;
-    std::cout << int(thing[0]) << " " << int(thing[1] )<< std::endl;
+    Matrix matrix = {
+        {2, -3, 0},
+        {-3, 12, -7},
+        {0, -7, 5}
+    };
+    std::cout << matrix.determinant() << std::endl;
 }

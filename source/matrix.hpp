@@ -6,6 +6,8 @@
 #include <ostream>
 #include <vector>
 
+#include <cmath>
+
 #include "log.hpp"
 
 /* ******************************************************************** Synopsis
@@ -127,7 +129,7 @@ The operators are split into a few distinct functions:
     [m0, m1, ..., mn]
 
 */
-std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {    
+std::ostream &operator<<(std::ostream &stream, const Matrix &matrix) {
     const auto columns = matrix.columns();
     for(unsigned int row = 0; row < matrix.rows(); row += 1) {
         stream << "[";
@@ -690,7 +692,7 @@ unsigned int Matrix::offset(const unsigned int &row, const unsigned int &column)
         const {
 
     unsigned int result = (row * _columns) + column;
-    if(result > (_columns * _rows)) {
+    if(result >= (_columns * _rows)) {
         Index index(row, column);
         Log::error() << "Can't access element at " << index << " from a matrix "
                 "of size " << size() << " (offset = " << result << ")" <<

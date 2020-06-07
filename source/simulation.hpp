@@ -1,10 +1,14 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <vector>
 
+#include <cmath>
+
 #include "component.hpp"
 #include "parse.hpp"
+#include "matrix.hpp"
 
 class Simulation {
 
@@ -28,11 +32,60 @@ public:
 
 private:
 
+    static inline void populate_instances(const std::vector<std::shared_ptr<Component>> &components) {
+        std::map<Component::Type, unsigned int> instances;
+        for(auto &component : components) {
+            auto &instance_count = instances[component->type];
+            component->instance = instance_count;
+            instance_count += 1;
+        }
+    }
+
+    static inline std::map<std::string, unsigned int> isolate_nodes(const std::vector<std::shared_ptr<Component>> &components) {
+        std::map<std::string, unsigned int> nodes;
+        for(const auto &component : components) {
+            for(unsigned int index = 0; index < component->nodes.size(); index += 1)
+                nodes[component->nodes[index]] += 1;
+        }
+        return nodes;
+    }
+
+    static inline unsigned int count_voltage_sources(
+            const std::vector<std::shared_ptr<Component>> &components);
+
+    static inline unsigned int count_current_sources(
+            const std::vector<std::shared_ptr<Component>> &components) {
+
+        unsigned int result = 0;
+        for(const auto &component : components) {
+            if(component->type == Component::CAPACITOR)
+                result += 1;
+        }
+        return result;
+    }
+
     std::vector<std::shared_ptr<Component>> components;
 
     std::shared_ptr<Operation> operation;
 
 };
+
+// *************************************************************** Count helpers
+
+inline unsigned int Simulation::count_voltage_sources(
+        const std::vector<std::shared_ptr<Component>> &components) {
+
+    unsigned int result = 0;
+    for(const auto &component : components) {
+        if(component->type == Component::VOLTAGE_SOURCE)
+            result += 1;
+    }
+    return result;
+}
+
+// ******************************************************** Serialization helper
+
+
 
 // ************************************************************ Parse operations
 
@@ -92,8 +145,6 @@ std::shared_ptr<Simulation> Simulation::parse(const std::string &netlist) {
 
         // Parse SPICE command
         else if(buffer.get_current() == '.') {
-            Log::debug() << "Parsing command" << std::endl;
-
             if(buffer.skip_string(".end"))
                 break;
             else if(buffer.get_string(".tran")) {
@@ -114,8 +165,6 @@ std::shared_ptr<Simulation> Simulation::parse(const std::string &netlist) {
 
         // Parse component
         else if(Component::is_symbol(buffer.get_current())) {
-            Log::debug() << "Parsing component" << std::endl;
-
             const auto component = Component::parse(buffer);
             if(component == nullptr) {
                 Log::error() << "Malformed component specification, line " <<
@@ -142,6 +191,9 @@ std::shared_ptr<Simulation> Simulation::parse(const std::string &netlist) {
             return nullptr;
         }
     }
+
+    // Assign each component a unique instance number
+    populate_instances(simulation->components);
 
     // Check there were components in the netlist
     if(simulation->components.empty()) {
@@ -174,12 +226,133 @@ bool Simulation::run(std::fstream &stream) {
         return false;
     }
 
+    auto nodes = isolate_nodes(components);
+
+    const auto node_count = nodes.size();
+    const auto voltage_source_count = count_voltage_sources(components);
+    const auto current_source_count = count_current_sources(components);
+
+    const auto size = node_count + voltage_source_count + current_source_count;
+
+    Matrix conductances(size, size);
+    Matrix constants(1, size);
+
     for(double time = operation->start_time; time < operation->stop_time;
             time += operation->time_step) {
 
-        stream << time;
+        for(const auto &component : components) {
 
-        stream << std::endl;
+            // Handle capacitors
+            if(component->type == Component::CAPACITOR) {
+                const auto capacitor = Component::cast<Capacitor>(component);
+
+                const auto node_0 = nodes[capacitor->nodes[0]];
+                const auto node_1 = nodes[capacitor->nodes[1]];
+
+                const unsigned int column = node_count + voltage_source_count +
+                        capacitor->instance - 1;
+                const auto voltage = capacitor->voltage(time);
+                if(node_0) {
+                    conductances(node_0 - 1, column) = 1;
+                    constants(node_count + node_0 - 2, 0) = voltage;
+                }
+                if(node_1) {
+                    conductances(node_1 - 1, column) = -1;
+                    constants(node_count + node_1 - 2, 0) = -voltage;
+                }
+            }
+
+            // Handle inductors
+            else if(component->type == Component::INDUCTOR) {
+                const auto inductor = Component::cast<Inductor>(component);
+
+                const auto node_0 = nodes[inductor->nodes[0]];
+                const auto node_1 = nodes[inductor->nodes[1]];
+
+                const auto current = inductor->current(time);
+                if(node_0)
+                    constants(node_0 - 1, 0) = current;
+                if(node_1)
+                    constants(node_1 - 1, 0) = -current;
+            }
+
+            // Handle resistors
+            else if(component->type == Component::RESISTOR) {
+                const auto resistor = Component::cast<Resistor>(component);
+
+                const auto node_0 = nodes[resistor->nodes[0]];
+                const auto node_1 = nodes[resistor->nodes[1]];
+
+                if(node_0)
+                    conductances(node_0 - 1, node_0 - 1) += resistor->value;
+                if(node_1)
+                    conductances(node_1 - 1, node_1 - 1) += resistor->value;
+
+                if(node_0 && node_1) {
+                    conductances(node_0 - 1, node_1 - 1) += 1 / resistor->value;
+                    conductances(node_1 - 1, node_0 - 1) += 1 / resistor->value;
+                }
+            }
+
+            // Handle current sources
+            else if(component->type == Component::CURRENT_SOURCE) {
+                const auto current_source =
+                        Component::cast<CurrentSource>(component);
+
+                const auto node_0 = nodes[current_source->nodes[0]];
+                const auto node_1 = nodes[current_source->nodes[1]];
+
+                const auto value = current_source->value(time);
+                if(node_0)
+                    constants(node_0 - 1, 0) = value;
+                if(node_1)
+                    constants(node_1 - 1, 0) = value;
+            }
+
+            // Handle voltage sources
+            else if(component->type == Component::VOLTAGE_SOURCE) {
+                const auto voltage_source =
+                        Component::cast<VoltageSource>(component);
+
+                const auto node_0 = nodes[voltage_source->nodes[0]];
+                const auto node_1 = nodes[voltage_source->nodes[1]];
+
+                const unsigned int column = node_count +
+                        voltage_source->instance;
+                const auto value = voltage_source->value(time);
+                if(node_0) {
+                    conductances(node_0 - 1, column) = 1;
+                    constants(node_count + node_0 - 2, 0) = value;
+                }
+                if(node_1) {
+                    conductances(node_1 - 1, column) = -1;
+                    constants(node_count + node_1 - 2, 0) = value;
+                }
+            }
+        }
+
+        // Transpose the voltage source sign multipliers
+        for(unsigned int row = 0; row < node_count; row += 1) {
+            for(unsigned int column = node_count; column < size; column += 1) {
+                conductances(column, row) = conductances(row, column);
+            }
+        }
+
+        // Negate and reciprocate the off-diagonal conductance values
+        for(unsigned int row = 0; row < node_count; row += 1) {
+            for(unsigned int column = 0; column < node_count; column += 1) {
+                if(row == column)
+                    continue;
+
+                if(conductances(row, column))
+                    conductances(row, column) = -1 / conductances(row, column);
+            }
+        }
+
+        std::cout << conductances << std::endl;
+        std::cout << constants << std::endl;
+
+        break;
     }
 
     return true;

@@ -29,6 +29,15 @@ class Component {
 
         std::string name;
 
+        unsigned int instance;
+
+        template <typename DerivedType>
+        static std::shared_ptr<DerivedType> cast(
+                const std::shared_ptr<Component> &pointer) {
+
+            return std::static_pointer_cast<DerivedType>(pointer);
+        }
+
         static bool is_symbol(const char &character) {
             return symbols.find(character) != symbols.end();
         }
@@ -107,21 +116,29 @@ class Passive {
 
 struct Capacitor : public Passive, public Component {
 
-    Capacitor() : Component(Component::CAPACITOR) {}
+    double integral;
 
     static std::shared_ptr<Capacitor> parse(Parse::Buffer &buffer) {
         return Passive::parse<Capacitor>(buffer, 'C');
     }
 
+    Capacitor() : Component(Component::CAPACITOR) {}
+
+    double voltage(const double &time) { return 0; }
+
 };
 
 struct Inductor : public Passive, public Component  {
 
-    Inductor() : Component(Component::INDUCTOR) {}
+    double integral;
 
     static std::shared_ptr<Inductor> parse(Parse::Buffer &buffer) {
         return Passive::parse<Inductor>(buffer, 'L');
     }
+
+    Inductor() : Component(Component::INDUCTOR) {}
+
+    double current(const double &time) { return 0; }
 
 };
 
