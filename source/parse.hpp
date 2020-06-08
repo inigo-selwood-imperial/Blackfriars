@@ -78,10 +78,10 @@ The source file is split into 9 parts:
 namespace Parse {
 
 enum Whitespace {
-    COMMENTS,
-    NEWLINES,
-    SPACES,
-    TABS
+    COMMENTS =  1,
+    NEWLINES =  1 << 1,
+    SPACES =    1 << 2,
+    TABS =      1 << 3
 };
 
 class Buffer {
@@ -229,7 +229,7 @@ char Buffer::get_current() const {
 // Returns true if the string provided is encountered at the current position
 // in the text
 bool Buffer::get_string(const std::string &text) const {
-    return _index < _length ? _text[_index] : 0;
+    return _text.substr(_index, text.length()) == text;
 }
 
 // ************************************************************ End reached test
