@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "parse.hpp"
+#include "matrix.hpp"
 
 // ******************************************************************* Component
 
@@ -25,7 +26,9 @@ class Component {
 
         const Type type;
 
-        std::vector<std::string> nodes;
+        std::vector<std::string> node_names;
+
+        std::vector<unsigned int> node_indices;
 
         std::string name;
 
@@ -59,8 +62,12 @@ class Component {
         }
 
         Component(const Type &type) : type(type) {
-            nodes.resize(2);
+            node_names.resize(2);
+            node_indices.resize(2, 0);
         }
+
+        virtual void tabulate(Matrix &conductances, Matrix &constants, Matrix &previous_results,
+                const unsigned int &node_count, const unsigned int &voltage_source_count, const double &time) = 0;
 
     private:
 
@@ -90,8 +97,8 @@ class Passive {
 
         std::vector<std::reference_wrapper<std::string>> tokens = {
             passive->name,
-            passive->nodes[0],
-            passive->nodes[1]
+            passive->node_names[0],
+            passive->node_names[1]
         };
 
         for(std::string &token : tokens) {
@@ -126,6 +133,25 @@ struct Capacitor : public Passive, public Component {
 
     double voltage(const double &time) { return 0; }
 
+    void tabulate(Matrix &conductances, Matrix &constants,
+            Matrix &previous_results, const unsigned int &node_count,
+            const unsigned int &voltage_source_count,
+            const double &time) override {
+
+        const auto node_0 = node_indices[0];
+        const auto node_1 = node_indices[1];
+
+        const unsigned int column = node_count + instance;
+        if(node_0)
+            conductances(node_0 - 1, column) = 1;
+        if(node_1)
+            conductances(node_1 - 1, column) = -1;
+
+        const unsigned int row = node_count + voltage_source_count +
+                instance - 1;
+        constants(row, 0) = voltage(time);
+    }
+
 };
 
 struct Inductor : public Passive, public Component  {
@@ -140,14 +166,47 @@ struct Inductor : public Passive, public Component  {
 
     double current(const double &time) { return 0; }
 
+    void tabulate(Matrix &conductances, Matrix &constants,
+            Matrix &previous_results, const unsigned int &node_count,
+            const unsigned int &voltage_source_count,
+            const double &time) override {
+
+        const auto node_0 = node_indices[0];
+        const auto node_1 = node_indices[1];
+
+        const auto current_value = current(time);
+        if(node_0)
+            constants(node_0 - 1, 0) = current_value;
+        if(node_1)
+            constants(node_1 - 1, 0) = -current_value;
+    }
+
 };
 
 struct Resistor : public Passive, public Component  {
 
-    Resistor() : Component(Component::RESISTOR) {}
-
     static std::shared_ptr<Resistor> parse(Parse::Buffer &buffer) {
         return Passive::parse<Resistor>(buffer, 'R');
+    }
+
+    Resistor() : Component(Component::RESISTOR) {}
+
+    void tabulate(Matrix &conductances, Matrix &constants,
+            Matrix &previous_results, const unsigned int &node_count,
+            const unsigned int &voltage_source_count,
+            const double &time) override {
+
+        const auto node_0 = node_indices[0];
+        const auto node_1 = node_indices[1];
+
+        if(node_0)
+            conductances(node_0 - 1, node_0 - 1) += 1 / value;
+        if(node_1)
+            conductances(node_1 - 1, node_1 - 1) += 1 / value;
+        if(node_0 && node_1) {
+            conductances(node_0 - 1, node_1 - 1) += value;
+            conductances(node_1 - 1, node_0 - 1) += value;
+        }
     }
 
 };
@@ -195,8 +254,8 @@ class Source {
 
             std::vector<std::reference_wrapper<std::string>> tokens = {
                 source->name,
-                source->nodes[0],
-                source->nodes[1]
+                source->node_names[0],
+                source->node_names[1]
             };
 
             for(std::string &token : tokens) {
@@ -226,20 +285,52 @@ class Source {
 
 struct VoltageSource : public Source, public Component {
 
-    VoltageSource() : Component(Component::VOLTAGE_SOURCE) {}
-
     static std::shared_ptr<VoltageSource> parse(Parse::Buffer &buffer) {
         return Source::parse<VoltageSource>(buffer, 'V');
+    }
+
+    VoltageSource() : Component(Component::VOLTAGE_SOURCE) {}
+
+    void tabulate(Matrix &conductances, Matrix &constants,
+            Matrix &previous_results, const unsigned int &node_count,
+            const unsigned int &voltage_source_count,
+            const double &time) override {
+
+        const auto node_0 = node_indices[0];
+        const auto node_1 = node_indices[1];
+
+        const unsigned int column = node_count + instance;
+        if(node_0)
+            conductances(node_0 - 1, column) = 1;
+        if(node_1)
+            conductances(node_1 - 1, column) = -1;
+
+        constants(node_count + instance, 0) = value(time);
     }
 
 };
 
 struct CurrentSource : public Source, public Component {
 
-    CurrentSource() : Component(Component::CURRENT_SOURCE) {}
-
     static std::shared_ptr<CurrentSource> parse(Parse::Buffer &buffer) {
         return Source::parse<CurrentSource>(buffer, 'I');
+    }
+
+    CurrentSource() : Component(Component::CURRENT_SOURCE) {}
+
+    void tabulate(Matrix &conductances, Matrix &constants,
+            Matrix &previous_results, const unsigned int &node_count,
+            const unsigned int &voltage_source_count,
+            const double &time) override {
+
+        const auto node_0 = node_indices[0];
+        const auto node_1 = node_indices[1];
+
+        const auto current_value = value(time);
+        if(node_0)
+            constants(node_0 - 1, 0) = -current_value;
+        if(node_1)
+            constants(node_1 - 1, 0) = current_value;
     }
 
 };
@@ -248,8 +339,6 @@ struct CurrentSource : public Source, public Component {
 
 struct Diode : public Component{
 
-    Diode() : Component(Component::DIODE) {}
-
     static std::shared_ptr<Diode> parse(Parse::Buffer &buffer) {
         if(Component::skip_designator(buffer, 'D') == false)
             return nullptr;
@@ -257,18 +346,35 @@ struct Diode : public Component{
         return nullptr;
     }
 
+    Diode() : Component(Component::DIODE) {}
+
+    void tabulate(Matrix &conductances, Matrix &constants,
+            Matrix &previous_results, const unsigned int &node_count,
+            const unsigned int &voltage_source_count,
+            const double &time) override {
+
+    }
+
 };
 
 struct Transistor : public Component {
-
-    Transistor() : Component(Component::TRANSISTOR) {
-        nodes.resize(3);
-    }
 
     static std::shared_ptr<Transistor> parse(Parse::Buffer &buffer) {
         if(Component::skip_designator(buffer, 'Q') == false)
             return nullptr;
         return nullptr;
+    }
+
+    Transistor() : Component(Component::TRANSISTOR) {
+        node_names.resize(3);
+        node_indices.resize(3);
+    }
+
+    void tabulate(Matrix &conductances, Matrix &constants,
+            Matrix &previous_results, const unsigned int &node_count,
+            const unsigned int &voltage_source_count,
+            const double &time) override {
+
     }
 
 };

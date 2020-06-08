@@ -32,62 +32,48 @@ public:
 
 private:
 
-    static inline void populate_instances(const std::vector<std::shared_ptr<Component>> &components) {
-        std::map<Component::Type, unsigned int> instances;
-        for(auto &component : components) {
-            auto &instance_count = instances[component->type];
-            component->instance = instance_count;
-            instance_count += 1;
-        }
-    }
-
-    static inline std::map<std::string, unsigned int> isolate_nodes(const std::vector<std::shared_ptr<Component>> &components) {
-        std::map<std::string, unsigned int> nodes;
-        for(const auto &component : components) {
-            for(unsigned int index = 0; index < component->nodes.size(); index += 1)
-                nodes[component->nodes[index]] += 1;
-        }
-        return nodes;
-    }
-
-    static inline unsigned int count_voltage_sources(
-            const std::vector<std::shared_ptr<Component>> &components);
-
-    static inline unsigned int count_current_sources(
-            const std::vector<std::shared_ptr<Component>> &components) {
-
-        unsigned int result = 0;
-        for(const auto &component : components) {
-            if(component->type == Component::CAPACITOR)
-                result += 1;
-        }
-        return result;
-    }
-
     std::vector<std::shared_ptr<Component>> components;
 
     std::shared_ptr<Operation> operation;
 
+    static inline void assign_instances(
+            const std::vector<std::shared_ptr<Component>> &components);
+    static inline void assign_nodes(
+            const std::vector<std::shared_ptr<Component>> &components);
 };
 
-// *************************************************************** Count helpers
-
-inline unsigned int Simulation::count_voltage_sources(
+inline void Simulation::assign_nodes(
         const std::vector<std::shared_ptr<Component>> &components) {
 
-    unsigned int result = 0;
-    for(const auto &component : components) {
-        if(component->type == Component::VOLTAGE_SOURCE)
-            result += 1;
+    std::map<std::string, unsigned int> nodes = {{"0", 0}};
+    unsigned int last_index = 0;
+    for(auto &component : components) {
+        for(unsigned int index = 0;
+                index < ((component->type == Component::TRANSISTOR) ? 3 : 2);
+                index += 1) {
+
+            const auto &name = component->node_names[index];
+            if(nodes.find(name) == nodes.end()) {
+                last_index += 1;
+                nodes[name] = last_index;
+                component->node_indices[index] = last_index;
+            }
+            else
+                component->node_indices[index] = nodes[name];
+        }
     }
-    return result;
 }
 
-// ******************************************************** Serialization helper
+inline void Simulation::assign_instances(
+        const std::vector<std::shared_ptr<Component>> &components) {
 
-
-
-// ************************************************************ Parse operations
+    std::map<Component::Type, unsigned int> instances;
+    for(auto &component : components) {
+        auto &instance_count = instances[component->type];
+        component->instance = instance_count;
+        instance_count += 1;
+    }
+}
 
 std::shared_ptr<Simulation::Operation> Simulation::Operation::parse(
         Parse::Buffer &buffer) {
@@ -98,7 +84,11 @@ std::shared_ptr<Simulation::Operation> Simulation::Operation::parse(
     auto operation = std::shared_ptr<Operation>(new Operation());
 
     buffer.skip_whitespace();
-    buffer.skip_character('0');
+    if(buffer.skip_string("0 ") == false) {
+        Log::error() << "Too few arguments for operation specification, "
+                "line " << buffer.get_position().line << std::endl;
+        return nullptr;
+    }
 
     std::vector<std::reference_wrapper<double>> fields = {
         operation->stop_time,
@@ -107,18 +97,16 @@ std::shared_ptr<Simulation::Operation> Simulation::Operation::parse(
     };
 
     for(double &field : fields) {
-        buffer.skip_whitespace();
+        buffer.skip_whitespace(Parse::SPACES | Parse::TABS);
 
-        const auto character = buffer.get_current();
-        if((character >= '0' && character <= '9') ||
-                character == '.' || character == '-') {
+        if(Parse::is_number(buffer.get_current())) {
 
             try {
                 field = Parse::metric_value(buffer);
             }
             catch(...) {
                 Log::error() << "Unexpected character in operation "
-                        "specification, " << buffer.get_position() <<
+                        "specification, line " << buffer.get_position().line <<
                         std::endl;
                 return nullptr;
             }
@@ -192,153 +180,74 @@ std::shared_ptr<Simulation> Simulation::parse(const std::string &netlist) {
         }
     }
 
-    // Assign each component a unique instance number
-    populate_instances(simulation->components);
-
     // Check there were components in the netlist
     if(simulation->components.empty()) {
         Log::error() << "No components in netlist" << std::endl;
         return nullptr;
     }
 
+    // Give each component a unique identifier based on its type, and assign
+    // each of its nodes an index
+    assign_nodes(simulation->components);
+    assign_instances(simulation->components);
+
     // Check an operation was specified in the netlist
-    else if(simulation->operation == nullptr) {
+    if(simulation->operation == nullptr) {
         Log::error() << "No operation in netlist" << std::endl;
         return nullptr;
     }
 
-    else
-        return simulation;
+    return simulation;
 }
 
-// **************************************************************** Run function
-
 bool Simulation::run(std::fstream &stream) {
+
+    // Check there are components to simulate
     if(components.empty()) {
         Log::error() << "Can't run simulation without any components" <<
                 std::endl;
         return false;
     }
 
+    // Check there's an operation specified
     else if(operation == nullptr) {
         Log::error() << "Can't run simulation without an operation "
                 "specified" << std::endl;
         return false;
     }
 
-    auto nodes = isolate_nodes(components);
+    unsigned int node_count = 0;
+    unsigned int voltage_source_count = 0;
+    unsigned int capacitor_count = 0;
 
-    const auto node_count = nodes.size();
-    const auto voltage_source_count = count_voltage_sources(components);
-    const auto current_source_count = count_current_sources(components);
+    for(const auto &component : components) {
+        for(unsigned int index = 0;
+                index < ((component->type == Component::TRANSISTOR) ? 3 : 2);
+                index += 1) {
 
-    const auto size = node_count + voltage_source_count + current_source_count;
+            node_count = std::max(node_count, component->node_indices[index]);
+        }
+
+        if(component->type == Component::CAPACITOR)
+            capacitor_count += 1;
+        else if(component->type == Component::VOLTAGE_SOURCE)
+            voltage_source_count += 1;
+    }
+
+    unsigned int size = node_count + voltage_source_count + capacitor_count;
 
     Matrix conductances(size, size);
     Matrix constants(1, size);
+    Matrix result(1, size);
 
     for(double time = operation->start_time; time < operation->stop_time;
             time += operation->time_step) {
 
-        for(const auto &component : components) {
-
-            // Handle capacitors
-            if(component->type == Component::CAPACITOR) {
-                const auto capacitor = Component::cast<Capacitor>(component);
-
-                const auto node_0 = nodes[capacitor->nodes[0]];
-                const auto node_1 = nodes[capacitor->nodes[1]];
-
-                const unsigned int column = node_count + voltage_source_count +
-                        capacitor->instance - 1;
-                const auto voltage = capacitor->voltage(time);
-                if(node_0) {
-                    conductances(node_0 - 1, column) = 1;
-                    constants(node_count + node_0 - 2, 0) = voltage;
-                }
-                if(node_1) {
-                    conductances(node_1 - 1, column) = -1;
-                    constants(node_count + node_1 - 2, 0) = -voltage;
-                }
-            }
-
-            // Handle inductors
-            else if(component->type == Component::INDUCTOR) {
-                const auto inductor = Component::cast<Inductor>(component);
-
-                const auto node_0 = nodes[inductor->nodes[0]];
-                const auto node_1 = nodes[inductor->nodes[1]];
-
-                const auto current = inductor->current(time);
-                if(node_0)
-                    constants(node_0 - 1, 0) = current;
-                if(node_1)
-                    constants(node_1 - 1, 0) = -current;
-            }
-
-            // Handle resistors
-            else if(component->type == Component::RESISTOR) {
-                const auto resistor = Component::cast<Resistor>(component);
-
-                const auto node_0 = nodes[resistor->nodes[0]];
-                const auto node_1 = nodes[resistor->nodes[1]];
-
-                if(node_0)
-                    conductances(node_0 - 1, node_0 - 1) += resistor->value;
-                if(node_1)
-                    conductances(node_1 - 1, node_1 - 1) += resistor->value;
-
-                if(node_0 && node_1) {
-                    conductances(node_0 - 1, node_1 - 1) += 1 / resistor->value;
-                    conductances(node_1 - 1, node_0 - 1) += 1 / resistor->value;
-                }
-            }
-
-            // Handle current sources
-            else if(component->type == Component::CURRENT_SOURCE) {
-                const auto current_source =
-                        Component::cast<CurrentSource>(component);
-
-                const auto node_0 = nodes[current_source->nodes[0]];
-                const auto node_1 = nodes[current_source->nodes[1]];
-
-                const auto value = current_source->value(time);
-                if(node_0)
-                    constants(node_0 - 1, 0) = value;
-                if(node_1)
-                    constants(node_1 - 1, 0) = value;
-            }
-
-            // Handle voltage sources
-            else if(component->type == Component::VOLTAGE_SOURCE) {
-                const auto voltage_source =
-                        Component::cast<VoltageSource>(component);
-
-                const auto node_0 = nodes[voltage_source->nodes[0]];
-                const auto node_1 = nodes[voltage_source->nodes[1]];
-
-                const unsigned int column = node_count +
-                        voltage_source->instance;
-                const auto value = voltage_source->value(time);
-                if(node_0) {
-                    conductances(node_0 - 1, column) = 1;
-                    constants(node_count + node_0 - 2, 0) = value;
-                }
-                if(node_1) {
-                    conductances(node_1 - 1, column) = -1;
-                    constants(node_count + node_1 - 2, 0) = value;
-                }
-            }
+        for(auto &component : components) {
+            component->tabulate(conductances, constants, result,
+                    node_count, voltage_source_count, time);
         }
 
-        // Transpose the voltage source sign multipliers
-        for(unsigned int row = 0; row < node_count; row += 1) {
-            for(unsigned int column = node_count; column < size; column += 1) {
-                conductances(column, row) = conductances(row, column);
-            }
-        }
-
-        // Negate and reciprocate the off-diagonal conductance values
         for(unsigned int row = 0; row < node_count; row += 1) {
             for(unsigned int column = 0; column < node_count; column += 1) {
                 if(row == column)
@@ -349,16 +258,24 @@ bool Simulation::run(std::fstream &stream) {
             }
         }
 
+        for(unsigned int row = 0; row < node_count; row += 1) {
+            for(unsigned int column = node_count; column < size; column += 1)
+                conductances(column, row) = conductances(row, column);
+        }
+
         std::cout << conductances << std::endl;
         std::cout << constants << std::endl;
+
+        std::cout << conductances.inverse() << std::endl;
+
+        result = conductances.inverse();
+        std::cout << (result * constants) << std::endl;
 
         break;
     }
 
     return true;
 }
-
-// **************************************************************** Constructors
 
 Simulation::Operation::Operation() {
     start_time = 0;
