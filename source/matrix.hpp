@@ -282,7 +282,7 @@ Matrix &Matrix::operator*=(const Matrix &matrix) {
         throw -1;
     }
 
-    Matrix result(_rows, matrix.columns());
+    Matrix result(matrix.columns(), _rows);
     for(unsigned int row = 0; row < _rows; row += 1) {
         for(unsigned int column = 0; column < matrix.columns(); column += 1) {
             double sum = 0;
@@ -328,8 +328,11 @@ Matrix::Index::Index(const unsigned int &row,
 Matrix::Index::Index(
         const std::initializer_list<unsigned int> &values) {
 
-    if(values.size() != 2)
+    if(values.size() != 2) {
+        Log::error() << "At the moment, the matrix class doesn't support "
+                "higher dimensions or scalars" << std::endl;
         throw -1;
+    }
 
     unsigned int index = 0;
     for(const auto &value : values) {
@@ -348,8 +351,11 @@ Matrix::Size::Size(const unsigned int &columns,
 Matrix::Size::Size(
         const std::initializer_list<unsigned int> &values) {
 
-    if(values.size() != 2)
+    if(values.size() != 2) {
+        Log::error() << "At the moment, the matrix class doesn't support "
+                "higher dimensions or scalars" << std::endl;
         throw -1;
+    }
 
     unsigned int index = 0;
     for(const auto &value : values) {
@@ -507,7 +513,6 @@ void Matrix::resize(const unsigned int &columns, const unsigned int &rows) {
 
 // Calculates the matrix's determinant
 double Matrix::determinant() const {
-
     // Only square matrices can have their determinants evaluated
     if(_columns != _rows) {
         Log::error() << "Can't get the determinant of a non-square matrix " <<
@@ -584,7 +589,6 @@ Matrix Matrix::adjugate() const {
 
 // Calculates the matrix's cofactor
 Matrix Matrix::cofactor() const {
-
     // Check the matrix is square
     if(_columns != _rows) {
         Log::error() << "Can't create cofactor matrix of a non-square "
@@ -613,7 +617,6 @@ Matrix Matrix::cofactor() const {
 
 // Calculates the matrix's inverse
 Matrix Matrix::inverse() const {
-
     // Check the matrix is square
     if(_rows != _columns) {
         Log::error() << "Can't create inverse matrix of a non-square matrix " <<
