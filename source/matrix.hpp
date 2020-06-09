@@ -87,6 +87,8 @@ private:
     unsigned int offset(const unsigned int &row, const unsigned int &column)
             const;
 
+    inline int choose_pivot_index(const unsigned int &initial_row);
+
 };
 
 std::ostream &operator<<(std::ostream &stream, const Matrix &matrix);
@@ -201,7 +203,7 @@ Matrix Matrix::operator()(const unsigned int &row_one,
     // Check the left-uppermost corner of this submatrix doesn't extend
     // underneath or to the right of the right-lowermost corner
     if(column_one > column_two || row_one > row_two) {
-        Log::error() << "Can't get submatrix with corners (" << row_one <<
+        std::cerr << "Can't get submatrix with corners (" << row_one <<
                 ", " << column_one << "), (" << row_two << ", " << column_two <<
                 ")" << std::endl;
         throw -1;
@@ -209,7 +211,7 @@ Matrix Matrix::operator()(const unsigned int &row_one,
 
     // Check the submatrix bounds don't extend beyond the size of this matrix
     else if(column_two > _columns || row_two > _rows) {
-        Log::error() << "Can't get submatrix with rightmost edge (" <<
+        std::cerr << "Can't get submatrix with rightmost edge (" <<
                 row_two << ", " << column_two << ") from a matrix with size " <<
                 size() << std::endl;
         throw -1;
@@ -257,7 +259,7 @@ Matrix operator+(const Matrix &one, const Matrix &two) {
 // Subtracts a matrix from this instance
 Matrix &Matrix::operator-=(const Matrix &matrix) {
     if(this->size() != matrix.size()) {
-        Log::error() << "Can't add matrices of sizes " << size() << " and " <<
+        std::cerr << "Can't add matrices of sizes " << size() << " and " <<
                 matrix.size() << std::endl;
         throw -1;
     }
@@ -277,7 +279,7 @@ Matrix &Matrix::operator*=(const double &factor) {
 // Multiplies this instance by a matrix
 Matrix &Matrix::operator*=(const Matrix &matrix) {
     if(_columns != matrix.rows()) {
-        Log::error() << "Can't multiply matrices of sizes " << size() <<
+        std::cerr << "Can't multiply matrices of sizes " << size() <<
                 " and " << matrix.size() << std::endl;
         throw -1;
     }
@@ -306,7 +308,7 @@ Matrix &Matrix::operator/=(const double &factor) {
 // Adds a matrix to this instance
 Matrix &Matrix::operator+=(const Matrix &matrix) {
     if(this->size() != matrix.size()) {
-        Log::error() << "Can't add matrices of sizes " << size() << " and " <<
+        std::cerr << "Can't add matrices of sizes " << size() << " and " <<
                 matrix.size() << std::endl;
         throw -1;
     }
@@ -329,7 +331,7 @@ Matrix::Index::Index(
         const std::initializer_list<unsigned int> &values) {
 
     if(values.size() != 2) {
-        Log::error() << "At the moment, the matrix class doesn't support "
+        std::cerr << "At the moment, the matrix class doesn't support "
                 "higher dimensions or scalars" << std::endl;
         throw -1;
     }
@@ -352,7 +354,7 @@ Matrix::Size::Size(
         const std::initializer_list<unsigned int> &values) {
 
     if(values.size() != 2) {
-        Log::error() << "At the moment, the matrix class doesn't support "
+        std::cerr << "At the moment, the matrix class doesn't support "
                 "higher dimensions or scalars" << std::endl;
         throw -1;
     }
@@ -409,7 +411,7 @@ Matrix &Matrix::remove_column(const unsigned int &column) {
 
     // Check the column index provided actually lies within the matrix
     if(column >= _columns) {
-        Log::error() << "Can't remove column " << column << " from a matrix of "
+        std::cerr << "Can't remove column " << column << " from a matrix of "
                 "size " << size() << std::endl;
         throw -1;
     }
@@ -442,7 +444,7 @@ Matrix &Matrix::remove_row(const unsigned int &row) {
 
     // Check the column index provided actually lies within the matrix
     if(row >= _rows) {
-        Log::error() << "Can't remove row " << row << " from a matrix of "
+        std::cerr << "Can't remove row " << row << " from a matrix of "
                 "size " << size() << std::endl;
         throw -1;
     }
@@ -513,73 +515,42 @@ void Matrix::resize(const unsigned int &columns, const unsigned int &rows) {
 
 // Calculates the matrix's determinant
 double Matrix::determinant() const {
-    // Only square matrices can have their determinants evaluated
-    if(_columns != _rows) {
-        Log::error() << "Can't get the determinant of a non-square matrix " <<
-                size() << std::endl;
+
+    // Check the matrix is square
+    if(_rows != _columns) {
+        std::cerr << "Can't get determinant of non-square matrix" <<
+            std::endl;
         throw -1;
     }
 
-    auto size = _columns;
-
-    // Create two matrices to hold the lower and upper decompositions
-    Matrix lower_matrix(size, size);
-    Matrix upper_matrix(size, size);
-
-    // I found this algorithm on StackOverflow somewhere, but it works...
-    std::array<unsigned int, 2> index;
-    for(index[0] = 0; index[0] < size; index[0] += 1) {
-        for(index[1] = 0; index[1] < size; index[1] += 1) {
-
-            if(index[1] < index[0])
-                lower_matrix(index[1], index[0]) = 0;
-
-            else {
-                lower_matrix(index[1], index[0]) = (*this)(index[1], index[0]);
-                for(unsigned int offset = 0; offset < index[0]; offset += 1) {
-                    lower_matrix(index[1], index[0]) =
-                            lower_matrix(index[1], index[0]) -
-                            lower_matrix(index[1], offset) *
-                            upper_matrix(offset, index[0]);
-                }
-            }
-        }
-        for(index[1] = 0; index[1] < size; index[1] += 1) {
-
-            if(index[1] < index[0])
-                upper_matrix(index[0], index[1]) = 0;
-
-            else if(index[1] == index[0])
-                upper_matrix(index[0], index[1]) = 1;
-
-            else {
-                upper_matrix(index[0], index[1]) = (*this)(index[0], index[1]) /
-                        lower_matrix(index[0], index[0]);
-                for(unsigned int offset = 0; offset < index[0]; offset += 1) {
-                    upper_matrix(index[0], index[1]) =
-                            upper_matrix(index[0], index[1]) -
-                            ((lower_matrix(index[0], offset) *
-                            upper_matrix(offset, index[1])) /
-                            lower_matrix(index[0], index[0]));
-                }
-            }
-        }
-    }
-
-    // Calculate the determinant of the matrix as described in the function
-    // description
+    // Create a temporary matrix to manipulate
+    Matrix temporary = *this;
     double result = 1;
-    for(unsigned int offset = 0; offset < size; offset += 1) {
-        result *= lower_matrix(offset, offset);
-        result *= upper_matrix(offset, offset);
+
+    for(unsigned int index = 0; index < _rows; index += 1) {
+        const auto pivot_index = temporary.choose_pivot_index(index);
+
+        if(pivot_index == -1)
+            return 0;
+
+        if(pivot_index == 0)
+            result *= -1;
+
+        const double diagonal = temporary(index, index);
+        result *= diagonal;
+
+        for(unsigned int row = index + 1; row < _rows; row += 1) {
+            const double pivot_value = temporary(row, index) / diagonal;
+            for(unsigned int column = index + 1; column < _columns;
+                    column += 1) {
+
+                temporary(row, column) -= pivot_value * temporary(index, column);
+            }
+        }
     }
 
-    // Without this step, a determinant close to zero might be evaluated as
-    // '-0'. This isn't strictly-speaking a mathematical problem, but it did
-    // mean that printing the value would look strange, so I've added this
-    // section to round values within the double data type's epsilon range to 0.
     const auto epsilon = std::numeric_limits<double>::epsilon();
-    return (std::fabs(result - 0.0) >= epsilon) ? result : 0;
+    return (std::fabs(result - 0.0) < epsilon) ? 0 : result;
 }
 
 // Calculates the matrix's adjugant
@@ -591,7 +562,7 @@ Matrix Matrix::adjugate() const {
 Matrix Matrix::cofactor() const {
     // Check the matrix is square
     if(_columns != _rows) {
-        Log::error() << "Can't create cofactor matrix of a non-square "
+        std::cerr << "Can't create cofactor matrix of a non-square "
                 "matrix, of size " << size() << std::endl;
         throw -1;
     }
@@ -619,7 +590,7 @@ Matrix Matrix::cofactor() const {
 Matrix Matrix::inverse() const {
     // Check the matrix is square
     if(_rows != _columns) {
-        Log::error() << "Can't create inverse matrix of a non-square matrix " <<
+        std::cerr << "Can't create inverse matrix of a non-square matrix " <<
                 size() << std::endl;
         throw -1;
     }
@@ -628,7 +599,7 @@ Matrix Matrix::inverse() const {
     // division-by-zero error)
     auto _determinant = this->determinant();
     if(_determinant == 0) {
-        Log::error() << "Can't get inverse of matrix with a zero determinant" <<
+        std::cerr << "Can't get inverse of matrix with a zero determinant" <<
                 std::endl;
         throw -1;
     }
@@ -697,10 +668,40 @@ unsigned int Matrix::offset(const unsigned int &row, const unsigned int &column)
     unsigned int result = (row * _columns) + column;
     if(result >= (_columns * _rows)) {
         Index index(row, column);
-        Log::error() << "Can't access element at " << index << " from a matrix "
+        std::cerr << "Can't access element at " << index << " from a matrix "
                 "of size " << size() << " (offset = " << result << ")" <<
                 std::endl;
         throw -1;
     }
     return result;
+}
+
+// ******************************************************** Pivot finding helper
+
+// Finds the row with the largest value along its diagonal, to act as a pivot
+// during L-U decomposition
+// Returns -1 if there are no rows with a diagonal value greater than zero
+inline int Matrix::choose_pivot_index(const unsigned int &initial_row) {
+    unsigned int swap_row = initial_row;
+    double greatest_value = -1;
+
+    for(unsigned int row = initial_row; row < _rows; row += 1) {
+        const double temporary = std::abs((*this)(row, initial_row));
+
+        if(temporary > greatest_value && temporary != 0) {
+            greatest_value = temporary;
+            swap_row = row;
+        }
+    }
+
+    if((*this)(swap_row, initial_row) == 0.0)
+        return -1;
+
+    if(swap_row != initial_row) {
+        for(unsigned int column = 0; column < _columns; column += 1)
+            std::swap((*this)(initial_row, column), (*this)(swap_row, column));
+        return swap_row;
+    }
+
+    return initial_row;
 }

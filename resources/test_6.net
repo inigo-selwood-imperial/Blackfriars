@@ -1,9 +1,0 @@
-* C:\Users\Inigo Selwood\OneDrive - Imperial College London\Work\ADC\Lab work\Op-amp project\Full op-amp\Draft1.asc
-V1 N001 0 1
-R1 N002 N001 5
-R3 0 N002 10
-I1 0 N002 1
-
-.tran 0 10ms 0 1ms
-.backanno
-.end
