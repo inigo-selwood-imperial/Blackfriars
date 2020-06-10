@@ -37,19 +37,6 @@ public:
 
     Buffer(const std::string &text);
 
-    std::string get_token(const std::unordered_set<char> delimiters) const;
-    std::string skip_token(const std::unordered_set<char> delimiters);
-
-    bool get_token(const char &token, const std::unordered_set<char> delimiters)
-            const;
-    bool get_token(const std::string &token,
-            const std::unordered_set<char> delimiters) const;
-
-    bool skip_token(const char &token,
-            const std::unordered_set<char> delimiters);
-    bool skip_token(const std::string &token,
-            const std::unordered_set<char> delimiters);
-
     bool end_reached() const;
 
 };
@@ -71,64 +58,9 @@ Buffer::Buffer(const std::string &text) {
     index = 0;
 }
 
-std::string Buffer::get_token(const std::unordered_set<char> delimiters =
-        Buffer::default_delimiters) const {
-
-    std::string token;
-    unsigned int offset = index;
-    while((delimiters.find(text[offset]) == delimiters.end()) &&
-            offset < length) {
-
-        token += text[offset];
-        offset += 1;
-    }
-
-    return token;
-}
-
-std::string Buffer::skip_token(const std::unordered_set<char> delimiters =
-        Buffer::default_delimiters) {
-
-    std::string token;
-    while((delimiters.find(text[index]) == delimiters.end()) &&
-        index < length) {
-
-        token += text[index];
-        index += 1;
-    }
-    skip_characters(delimiters);
-
-    return token;
-}
-
-bool Buffer::get_token(const char &token) const {
-
-    return ((index < length) && (text[index] == token));
-}
-
-bool Buffer::get_token(const std::string &token) const {
-
-    return text.substr(index, token.length()) == token;
-}
-
-bool Buffer::skip_token(const char &token,
-        const std::unordered_set<char> delimiters =
-        Buffer::default_delimiters) {
-
-    
-}
-
-bool Buffer::skip_token(const std::string &token,
-        const std::unordered_set<char> delimiters =
-        Buffer::default_delimiters) {
-
-}
-
 bool Buffer::end_reached() const {}
     return index >= length;
 };
-
-
 
 // ******************************************************************* Operation
 
@@ -140,6 +72,14 @@ class Operation {
 
 class Transient : public Operation {
 
+private:
+
+    Matrix conductances;
+    Matrix constants;
+
+    std::array<unsigned int, 2> get_index(const std::string &node_one,
+            const std::string &node_two);
+
 public:
 
     double start_time;
@@ -148,20 +88,146 @@ public:
 
     static std::shared_ptr<Transient> parse(Parse::Buffer);
 
+    double present_current(const std::string &node_one,
+            const std::string &node_two);
+    double present_voltage(const std::string &node_one,
+            const std::string &node_two);
+
+    double previous_current(const std::string &node_one,
+            const std::string &node_two);
+    double previous_voltage(const std::string &node_one,
+            const std::string &node_two);
+
+    double &current_integral(const std::string &node_one,
+            const std::string &node_two);
+    double &voltage_integral(const std::string &node_one,
+            const std::string &node_two);
+
+    void add_current(const std::string &node_one,
+            const std::string &node_two, const double &value);
+    void add_voltage(const std::string &node_one, const std::string &node_two,
+            const unsigned int &instance, const double &value);
+    void add_resistance(const std::string &node_one,
+            const std::string &node_two, const double &value);
+
 };
 
-std::shared_ptr<Transient> Transient::parse(Parse::Buffer &buffer) {
-    std::vector<std::reference_wrapper<double>> parameters;
-    for(auto &parameter : parameters) {
-
-    }
+std::array<unsigned int, 2> Transient::get_index(const std::string &node_one,
+        const std::string &node_two) {
+    return std::array<unsigned int, 2> = {
+        node_indices[node_one],
+        node_indices[node_two]
+    };
 }
 
-std::shared_ptr<Operation> parse(Parse::Buffer &buffer) {
+std::shared_ptr<Transient> Transient::parse(Parse::Buffer &buffer) {
+    auto transient = std::shared_ptr<Transient>(new Transient());
+
+    // Skip the operation prefix
+    if(bugger.skip_token(".tran") == false);
+        return nullptr;
+
+    // Place each value on the line into a vector
+    std::vector<std::string> values;
+    while(true) {
+        const auto value = buffer.skip_token();
+        if(value.empty())
+            break;
+        else
+            values.push_back(value);
+    }
+
+    // Check there are values present
+    if(values.empty())
+        return nullptr;
+
+    // LTSpice changes its format based on how many arguments are specified --
+    // it can be just one 'stop time' parameter, or up to two further
+    // parameters
+    else if(values.size() == 1)
+        transient->stop_time = Parse::metric_value(values[0]);
+
+    // If there's more than one operation argument, parse each one and assign it
+    // to the transient function
+    else {
+        std::vector<std::reference_wrapper>> parameters = {
+            transient->time_step,
+            transient->stop_time,
+            transient->start_time
+        }
+        try {
+            for(unsigned int index = 0; index < values.size; index += 1)
+                parameters[index] = Parse::metric_value(values[index]);
+        }
+        catch(...) {
+            return nullptr;
+        }
+    }
+
+    // Check the end of the line's been reached
+    if(buffer.skip_token('\n') == false)
+        return nullptr;
+
+    return transient;
+}
+
+std::shared_ptr<Operation> Operation::parse(Parse::Buffer &buffer) {
     if(buffer.get_token(".tran"))
         return Transient::parse(buffer);
     else
         return nullptr;
+}
+
+double Transient::present_current(const std::string &node_one,
+        const std::string &node_two) {
+
+    return present_currents[get_index(node_one, node_two)];
+}
+
+double Transient::present_voltage(const std::string &node_one,
+        const std::string &node_two) {
+
+    return present_voltages[get_index(node_one, node_two)];
+}
+
+double Transient::previous_current(const std::string &node_one,
+        const std::string &node_two) {
+
+    return previous_currents[get_index(node_one, node_two)];
+}
+
+double Transient::previous_voltage(const std::string &node_one,
+        const std::string &node_two) {
+
+    return present_voltages[get_index(node_one, node_two)];
+}
+
+double &Transient::current_integral(const std::string &node_one,
+        const std::string &node_two) {
+
+    return current_integrals[get_index(node_one, node_two)];
+}
+
+double &Transient::voltage_integral(const std::string &node_one,
+        const std::string &node_two) {
+
+    return voltage_integrals[get_index(node_one, node_two)];
+}
+
+void Transient::add_current(const std::string &node_one,
+        const std::string &node_two, const double &value) {
+
+}
+
+void Transient::add_voltage(const std::string &node_one,
+        const std::string &node_two, const unsigned int &instance,
+        const double &value) {
+
+}
+
+void Transient::add_resistance(const std::string &node_one,
+        const std::string &node_two, const double &value) {
+
 }
 
 // ******************************************************** Component base class
@@ -191,7 +257,7 @@ public:
 // TODO: Flesh out a bit
 void Schematic::add_component(const std::shared_ptr<Component> &component) {
     if(component == nullptr)
-        throw Schematic::NullComponentPointerException();
+        throw -1;
 
     components.push_back(component);
 }
@@ -215,11 +281,12 @@ template <typename Type>
 bool Passive::parse(Parse::Buffer &buffer, Schematic &schematic) {
     auto passive = std::shared_ptr<Type>(new Type);
 
+    // Extract the passive's name and nodes
     passive->name = buffer.skip_token();
-
     passive->nodes[0] = buffer.skip_token();
     passive->nodes[1] = buffer.skip_token();
 
+    // Parse the component's values
     try {
         passive->value = Parse::metric_value(buffer.skip_token());
     }
@@ -227,9 +294,11 @@ bool Passive::parse(Parse::Buffer &buffer, Schematic &schematic) {
         return false;
     }
 
+    // Check the end of the line's been reached
     if(buffer.skip_token('\n') == false)
         return false;
 
+    // Add the component to the schematic
     schematic.add_component(passive);
     return true;
 }
@@ -247,7 +316,8 @@ class Capacitor : public Component {
     Capacitor();
 
     template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic, const double &time);
+    void simulate(Operation &operation, const Schematic &schematic,
+            const double &time);
 
 };
 
@@ -258,7 +328,25 @@ bool Capacitor::parse(Parse::Buffer &buffer, Schematic &schematic) {
 }
 
 template <Transient transient>
-void Capacitor::simulate(Transient &transient, const Schematic &schematic, const double &time);
+void Capacitor::simulate(Transient &transient, const Schematic &schematic,
+        const double &time) {
+
+    // Get the present and previous voltage values across the capacitor's
+    // terminals
+    const auto present_voltage = transient.present_voltage(nodes[0], nodes[1]);
+    const auto previous_voltage = transient.previous_voltage(nodes[0],
+            nodes[1]);
+
+    // Add the new voltage integral to the historical integral across the two
+    // nodes
+    auto &integral = transient.voltage_integral(nodes[0], nodes[1]);
+    const double delta_voltage = (present_voltage + previous_voltage) / 2;
+    integral += transient->time_step * delta_voltage;
+
+    // Add a new voltage to the transient simulation
+    transient.add_voltage(nodes[0], nodes[1],
+            schematic->voltage_source_count + instance, (1 / value) * integral);
+}
 
 class Inductor : public Component {
 
@@ -278,7 +366,24 @@ bool Inductor::parse(Parse::Buffer &buffer, Schematic &schematic) {
 Inductor::Inductor() : Component(Component::Type::INDUCTOR) {}
 
 template <Transient transient>
-void Inductor::simulate(Transient &transient, const Schematic &schematic, const double &time);
+void Inductor::simulate(Transient &transient, const Schematic &schematic,
+        const double &time) {
+
+    // Get the present and previous current values across the capacitor's
+    // terminals
+    const auto present_current = transient.present_current(nodes[0], nodes[1]);
+    const auto previous_current = transient.previous_current(nodes[0],
+            nodes[1]);
+
+    // Add the new current integral to the historical integral across the two
+    // nodes
+    auto &integral = transient.current_integral(nodes[0], nodes[1]);
+    const double delta_current = (present_current + previous_current) / 2;
+    integral += transient->time_step * delta_current;
+
+    // Add a new current to the transient simulation
+    transient.add_current(nodes[0], nodes[1], (1 / value) * integral);
+}
 
 class Resistor : public Component {
 
@@ -287,7 +392,8 @@ class Resistor : public Component {
     Resistor();
 
     template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic, const double &time);
+    void simulate(Operation &operation, const Schematic &schematic,
+            const double &time);
 
 };
 
@@ -298,7 +404,12 @@ bool Resistor::parse(Parse::Buffer &buffer, Schematic &schematic) {
 Resistor::Resistor() : Component(Component::Type::RESISTOR) {}
 
 template <Transient transient>
-void Resistor::simulate(Transient &transient, const Schematic &schematic, const double &time);
+void Resistor::simulate(Transient &transient, const Schematic &schematic,
+        const double &time) {
+
+    // Add the resistance to the circuit
+    transient.add_resistance(nodes[0], nodes[1], value);
+}
 
 // *********************************************************** Source base class
 
@@ -314,9 +425,15 @@ class Constant : public Function {
 
 public:
 
+    double offset;
+
     double value(const double &time) const override;
 
 };
+
+double Constant::value(const double &time) const {
+    return offset;
+}
 
 class Sinusoid : public Function {
 
@@ -333,6 +450,24 @@ public:
     double value(const double &time) const override;
 
 };
+
+double Sinusoid::value(const double &time) const {
+
+    // Return if the delay time hasn't been reached
+    if(time < delay)
+        return 0;
+
+    // Return if a cycle count has been set, and the cycle limit has been
+    // reached
+    else if(cycles && time > ((1 / frequency) * cycles + delay))
+        return 0;
+
+    // Do all kinds of complicated maths sh*te
+    const double omega = 2 * 3.14159265359 * frequency;
+    const double damping_factor = std::exp(-theta * (time - delay));
+    const double sine_value = std::sin(omega * (time - delay) + phi);
+    return amplitude * damping_factor * sine_value + offset;
+}
 
 class Source {
 
@@ -351,26 +486,32 @@ template <typename Type>
 bool Source::parse(Parse::Buffer &buffer, Schematic &schematic) {
     auto source = std::shared_ptr<Type>(new Type);
 
+    // Extract the source's name and nodes
     source->name = buffer.skip_token();
-
     source->nodes[0] = buffer.skip_token();
     source->nodes[1] = buffer.skip_token();
 
+    // Parse its function
     const auto function = Function::parse(buffer);
     if(function == nullptr)
         return false;
     else
         source->function = function;
 
+    // Check the end of the line's been reached
     if(buffer.skip_token('\n') == false)
         return false;
 
+    // Add the source to the schmatic
     schematic.add_component(source);
+    return true;
 }
 
 double Source::value(const double &time) const {
+
+    // Check the source has a function specified
     if(function == nullptr)
-        throw Source::MissingFunctionException();
+        return 0;
     else
         return function->value(time);
 }
@@ -384,7 +525,8 @@ class CurrentSource : public Source, public Component {
     CurrentSource();
 
     template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic, const double &time);
+    void simulate(Operation &operation, const Schematic &schematic,
+            const double &time);
 
 };
 
@@ -395,7 +537,11 @@ bool CurrentSource::parse(Parse::Buffer &buffer, Schematic &schematic) {
 CurrentSource::CurrentSource() : Component(Component::Type::CURRENT_SOURCE) {}
 
 template <Transient transient>
-void CurrentSource::simulate(Transient &transient, const Schematic &schematic, const double &time);
+void CurrentSource::simulate(Transient &transient, const Schematic &schematic,
+        const double &time) {
+
+    transient.add_current(nodes[0], nodes[1], value(time));
+}
 
 class VoltageSource : public Source, public Component {
 
@@ -404,7 +550,8 @@ class VoltageSource : public Source, public Component {
     VoltageSource();
 
     template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic, const double &time);
+    void simulate(Operation &operation, const Schematic &schematic,
+            const double &time);
 
 };
 
@@ -415,82 +562,11 @@ bool VoltageSource::parse(Parse::Buffer &buffer, Schematic &schematic) {
 VoltageSource::VoltageSource() : Component(Component::Type::VOLTAGE_SOURCE) {}
 
 template <Transient transient>
-void VoltageSource::simulate(Transient &transient, const Schematic &schematic, const double &time);
+void VoltageSource::simulate(Transient &transient, const Schematic &schematic,
+        const double &time) {
 
-// ****************************************************************** Semiconductors
-
-class Diode : public Component {
-
-    static bool parse(Parse::Buffer &buffer, Schematic &schematic);
-
-    Diode();
-
-    template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic, const double &time);
-
-};
-
-bool Diode::parse(Parse::Buffer &buffer, Schematic &schematic) {
-    std::shared_ptr<Diode> diode(new Diode());
-
-    diode->name = buffer.skip_token();
-
-    diode->nodes[0] = buffer.skip_token();
-    diode->nodes[1] = buffer.skip_token();
-
-    if(buffer.skip_token('D') == false)
-        return false;
-
-    if(buffer.skip_token('\n') == false)
-        return false;
-
-    schematic.add_component(diode);
-    return true;
+    transient.add_voltage(nodes[0], nodes[1], instance, value(time));
 }
-
-Diode::Diode() : Component(Component::Type::DIODE) {}
-
-template <Transient transient>
-void Diode::simulate(Transient &transient, const Schematic &schematic, const double &time);
-
-class Transistor : public Component {
-
-    static bool parse(Parse::Buffer &buffer, Schematic &schematic);
-
-    Transistor();
-
-    template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic, const double &time);
-
-};
-
-bool Transistor::parse(Parse::Buffer &buffer, Schematic &schematic) {
-    auto transistor = std::shared_ptr<Transistor>(new Transistor());
-
-    transistor->name = buffer.skip_token();
-
-    transistor->nodes[0] = buffer.skip_token();
-    transistor->nodes[1] = buffer.skip_token();
-    transistor->nodes[2] = buffer.skip_token();
-
-    if(buffer.skip_token("NPN"))
-        transistor->model = Transistor::Model::NPN;
-    else if(buffer.skip_token("PNP"))
-        transistor->model = Transistor::Model::PNP;
-    else
-        return false;
-
-    if(buffer.skip_token('\n') == false)
-        return false;
-
-    schematic.add_component(transistor);
-    return true;
-}
-
-Transistor::Transistor() : Component(Component::Type::TRANSISTOR) {}
-
-template <Transient transient>
-void Transistor::simulate(Transient &transient, const Schematic &schematic, const double &time);
 
 // ************************************************** Component parse definition
 
@@ -505,10 +581,6 @@ bool Component::parse(Parse::Buffer &buffer, Schematic &schematic) {
         return VoltageSource::parse(buffer, schematic);
     else if(buffer.get_token('I'))
         return CurrentSource::parse(buffer, schematic);
-    else if(buffer.get_token('D'))
-        return Diode::parse(buffer, schematic);
-    else if(buffer.get_token('Q'))
-        return Transistor::parse(buffer, schematic);
     else
         return false;
 }
