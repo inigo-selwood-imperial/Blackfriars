@@ -2,18 +2,19 @@
 
 class Schematic {
 
-public:
+private:
 
     std::vector<std::shared_ptr<Component>> components;
+
+public:
 
     void add_component(const std::shared_ptr<Component> &component);
 
 };
 
-// TODO: Flesh out a bit
 void Schematic::add_component(const std::shared_ptr<Component> &component) {
     if(component == nullptr)
-        throw -1;
+        return;
 
     components.push_back(component);
 }
