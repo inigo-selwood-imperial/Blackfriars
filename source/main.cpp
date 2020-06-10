@@ -19,9 +19,6 @@ class Buffer {
 
 private:
 
-    static const std::unordered_set<char> default_delimiters =
-            {' ', '\n', '\t'};
-
     std::string text;
 
     unsigned int length;
@@ -29,23 +26,28 @@ private:
     unsigned int index;
     unsigned int line;
 
-    void increment(const unsigned int steps);
+    void increment(const unsigned int steps) noexcept;
 
-    void skip_characters(const std::unordered_set<char> &characters);
+    void skip_characters(const std::unordered_set<char> &characters) noexcept;
 
 public:
 
     Buffer(const std::string &text);
 
-    bool end_reached() const;
+    bool end_reached() const noexcept ;
 
 };
 
-void Buffer::increment(const unsigned int steps = 1) {
+// Moves forward the index by a given number of steps
+void Buffer::increment(const unsigned int steps = 1) noexcept {
     index += steps;
 }
 
-void Buffer::skip_characters(const std::unordered_set<char> &characters) {
+// Increments the index until a character *not* in the characters set is
+// reached, or the end of the file is encountered
+void Buffer::skip_characters(const std::unordered_set<char> &characters)
+        noexcept {
+
     while((characters.find(text[index]) != characters.end()) && index < length)
         index += 1;
 }
@@ -58,7 +60,8 @@ Buffer::Buffer(const std::string &text) {
     index = 0;
 }
 
-bool Buffer::end_reached() const {}
+// Returns true if the index has reached the end of the buffer
+bool Buffer::end_reached() const noexcept {}
     return index >= length;
 };
 
@@ -78,7 +81,7 @@ private:
     Matrix constants;
 
     std::array<unsigned int, 2> get_index(const std::string &node_one,
-            const std::string &node_two);
+            const std::string &node_two) const noexcept;
 
 public:
 
@@ -113,7 +116,7 @@ public:
 };
 
 std::array<unsigned int, 2> Transient::get_index(const std::string &node_one,
-        const std::string &node_two) {
+        const std::string &node_two) const noexcept {
     return std::array<unsigned int, 2> = {
         node_indices[node_one],
         node_indices[node_two]
