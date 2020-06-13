@@ -15,12 +15,12 @@ public:
     enum Type {
         NONE = -1,
 
-        CAPACITOR,
-        INDUCTOR,
-        RESISTOR,
+        CAPACITOR = 1,
+        INDUCTOR = 1 << 1,
+        RESISTOR = 1 << 2,
 
-        CURRENT_SOURCE,
-        VOLTAGE_SOURCE
+        CURRENT_SOURCE = 1 << 3,
+        VOLTAGE_SOURCE = 1 << 4
     };
 
     std::string name;
