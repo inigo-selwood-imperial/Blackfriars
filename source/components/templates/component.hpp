@@ -8,6 +8,8 @@
 class Schematic;
 class Operation;
 
+class Transient;
+
 class Component {
 
 public:
@@ -34,10 +36,7 @@ public:
         type = NONE;
     }
 
-    void simulate(const std::shared_ptr<Operation> &operation, const Schematic &schematic,
-            const double &time);
+    virtual void simulate(const std::shared_ptr<Transient> &operation,
+            const Schematic &schematic, const double &time) = 0;
 
 };
-
-void Component::simulate(const std::shared_ptr<Operation> &operation, const Schematic &schematic,
-        const double &time) {}

@@ -12,7 +12,7 @@ public:
     static std::shared_ptr<Capacitor> parse(TextBuffer &buffer);
 
     void simulate(const std::shared_ptr<Transient> &transient,
-            const Schematic &schematic, const double &time);
+            const Schematic &schematic, const double &time) override;
 
 };
 
