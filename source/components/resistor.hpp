@@ -1,24 +1,24 @@
 #pragma once
 
-class Resistor : public Component {
+#include "templates/passive.hpp"
+#include "templates/component.hpp"
 
-    static bool parse(Parse::Buffer &buffer, Schematic &schematic);
+class Resistor : public Passive, public Component {
 
-    Resistor();
+public:
 
-    template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic,
-            const double &time);
+    double value;
+
+    static std::shared_ptr<Resistor> parse(TextBuffer &buffer);
+
+    void simulate(const std::shared_ptr<Transient> &transient,
+            const Schematic &schematic, const double &time);
 
 };
 
-bool Resistor::parse(Parse::Buffer &buffer, Schematic &schematic) {
-    return Passive::parse<Resistor>(buffer, schematic, 'R');
+std::shared_ptr<Resistor> Resistor::parse(TextBuffer &buffer) {
+    return Passive::parse<Resistor>(buffer, 'R');
 }
 
-Resistor::Resistor() : Component(Component::Type::RESISTOR) {}
-
-template <Transient transient>
-void Resistor::simulate(Transient &transient, const Schematic &schematic,
-        const double &time) {
-}
+void Resistor::simulate(const std::shared_ptr<Transient> &operation,
+        const Schematic &schematic, const double &time) {}

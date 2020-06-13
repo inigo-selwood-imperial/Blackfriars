@@ -1,24 +1,22 @@
 #pragma once
 
+#include "templates/component.hpp"
+#include "templates/source.hpp"
+
 class CurrentSource : public Source, public Component {
 
-    static bool parse(Parse::Buffer &buffer, Schematic &schematic);
+public:
 
-    CurrentSource();
+    static std::shared_ptr<CurrentSource> parse(TextBuffer &buffer);
 
-    template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic,
-            const double &time);
+    void simulate(const std::shared_ptr<Transient> &transient,
+            const Schematic &schematic, const double &time);
 
 };
 
-bool CurrentSource::parse(Parse::Buffer &buffer, Schematic &schematic) {
-    return Source::parse<CurrentSource>(buffer, schematic, 'I');
+std::shared_ptr<CurrentSource> CurrentSource::parse(TextBuffer &buffer) {
+    return Source::parse<CurrentSource>(buffer, 'I');
 }
 
-CurrentSource::CurrentSource() : Component(Component::Type::CURRENT_SOURCE) {}
-
-template <Transient transient>
-void CurrentSource::simulate(Transient &transient, const Schematic &schematic,
-        const double &time) {
-}
+void CurrentSource::simulate(const std::shared_ptr<Transient> &operation,
+        const Schematic &schematic, const double &time) {}

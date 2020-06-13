@@ -1,0 +1,7 @@
+* Test for use during debugging
+R1 0 N001 30k
+C1 0 N001 30p
+L1 0 N001 30m
+V1 0 N001 30
+.tran 1m
+.end

@@ -1,23 +1,24 @@
 #pragma once
 
-class Inductor : public Component {
+#include "templates/passive.hpp"
+#include "templates/component.hpp"
 
-    static bool parse(Parse::Buffer &buffer, Schematic &schematic);
+class Inductor : public Passive, public Component {
 
-    Inductor();
+public:
 
-    template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic, const double &time);
+    double value;
+
+    static std::shared_ptr<Inductor> parse(TextBuffer &buffer);
+
+    void simulate(const std::shared_ptr<Transient> &transient,
+            const Schematic &schematic, const double &time);
 
 };
 
-bool Inductor::parse(Parse::Buffer &buffer, Schematic &schematic) {
-    return Passive::parse<Inductor>(buffer, schematic, 'L');
+std::shared_ptr<Inductor> Inductor::parse(TextBuffer &buffer) {
+    return Passive::parse<Inductor>(buffer, 'L');
 }
 
-Inductor::Inductor() : Component(Component::Type::INDUCTOR) {}
-
-template <Transient transient>
-void Inductor::simulate(Transient &transient, const Schematic &schematic,
-        const double &time) {
-}
+void Inductor::simulate(const std::shared_ptr<Transient> &operation,
+        const Schematic &schematic, const double &time) {}

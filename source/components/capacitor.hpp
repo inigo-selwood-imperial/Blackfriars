@@ -1,24 +1,24 @@
 #pragma once
 
-class Capacitor : public Component {
+#include "templates/component.hpp"
+#include "templates/passive.hpp"
 
-    static bool parse(Parse::Buffer &buffer, Schematic &schematic);
+class Capacitor : public Passive, public Component {
 
-    Capacitor();
+public:
 
-    template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic,
-            const double &time);
+    double value;
+
+    static std::shared_ptr<Capacitor> parse(TextBuffer &buffer);
+
+    void simulate(const std::shared_ptr<Transient> &transient,
+            const Schematic &schematic, const double &time);
 
 };
 
-Capacitor::Capacitor() : Component(Component::Type::CAPACITOR) {}
-
-bool Capacitor::parse(Parse::Buffer &buffer, Schematic &schematic) {
-    return Passive::parse<Capacitor>(buffer, schematic, 'C');
+std::shared_ptr<Capacitor> Capacitor::parse(TextBuffer &buffer) {
+    return Passive::parse<Capacitor>(buffer, 'C');
 }
 
-template <Transient transient>
-void Capacitor::simulate(Transient &transient, const Schematic &schematic,
-        const double &time) {
-}
+void Capacitor::simulate(const std::shared_ptr<Transient> &transient,
+        const Schematic &schematic, const double &time) {}

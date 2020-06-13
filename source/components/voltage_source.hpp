@@ -1,24 +1,22 @@
 #pragma once
 
+#include "templates/component.hpp"
+#include "templates/source.hpp"
+
 class VoltageSource : public Source, public Component {
 
-    static bool parse(Parse::Buffer &buffer, Schematic &schematic);
+public:
 
-    VoltageSource();
+    static std::shared_ptr<VoltageSource> parse(TextBuffer &buffer);
 
-    template <typename Operation>
-    void simulate(Operation &operation, const Schematic &schematic,
-            const double &time);
+    void simulate(const std::shared_ptr<Transient> &transient,
+            const Schematic &schematic, const double &time);
 
 };
 
-bool VoltageSource::parse(Parse::Buffer &buffer, Schematic &schematic) {
-    return Source::parse<VoltageSource>(buffer, schematic, 'V');
+std::shared_ptr<VoltageSource> VoltageSource::parse(TextBuffer &buffer) {
+    return Source::parse<VoltageSource>(buffer, 'V');
 }
 
-VoltageSource::VoltageSource() : Component(Component::Type::VOLTAGE_SOURCE) {}
-
-template <Transient transient>
-void VoltageSource::simulate(Transient &transient, const Schematic &schematic,
-        const double &time) {
-}
+void VoltageSource::simulate(const std::shared_ptr<Transient> &operation,
+        const Schematic &schematic, const double &time) {}
