@@ -151,12 +151,6 @@ bool Simulation::run(std::ostream &stream) {
         failed = true;
     }
 
-    // Check there are components to simulate
-    if(schematic.empty()) {
-        std::cerr << "No components in simulation schematic" << std::endl;
-        failed = true;
-    }
-
     if(failed)
         return false;
 
