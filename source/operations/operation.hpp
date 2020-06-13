@@ -7,6 +7,6 @@ class Operation {
 public:
 
     virtual bool run(Schematic &schematic,
-            const std::ostream &stream) = 0;
+            std::ostream &stream) = 0;
 
 };
