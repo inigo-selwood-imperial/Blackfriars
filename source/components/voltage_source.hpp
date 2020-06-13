@@ -18,5 +18,8 @@ std::shared_ptr<VoltageSource> VoltageSource::parse(TextBuffer &buffer) {
     return Source::parse<VoltageSource>(buffer, 'V');
 }
 
-void VoltageSource::simulate(const std::shared_ptr<Transient> &operation,
-        const Schematic &schematic, const double &time) {}
+void VoltageSource::simulate(const std::shared_ptr<Transient> &transient,
+        const Schematic &schematic, const double &time) {
+
+    transient->add_voltage(nodes[0], nodes[1], this->name, value(time));
+}

@@ -16,6 +16,9 @@
 class Transient : public std::enable_shared_from_this<Transient>,
         public Operation {
 
+private:
+
+
 public:
 
     double start_time;
@@ -23,6 +26,21 @@ public:
     double time_step;
 
     static std::shared_ptr<Transient> parse(TextBuffer &buffer);
+
+    void add_voltage(const std::string &node_one, const std::string &node_two,
+            const std::string &name, const double &value);
+    void add_current(const std::string &node_one, const std::string &node_two,
+            const double &value);
+    void add_resistance(const std::string &node_one,
+            const std::string &node_two, const double &value);
+
+    double current_integral(const std::string &name);
+    double current_delta_average(const std::string &name);
+
+    double voltage_integral(const std::string &node_one,
+            const std::string &node_two);
+    double voltage_delta_average(const std::string &node_one,
+            const std::string &node_two);
 
     bool run(Schematic &schematic, const std::ostream &stream) override;
 };
@@ -76,7 +94,48 @@ std::shared_ptr<Transient> Transient::parse(TextBuffer &buffer) {
     return transient;
 }
 
+void Transient::add_voltage(const std::string &node_one,
+        const std::string &node_two, const std::string &name,
+        const double &value) {
+
+
+}
+
+void Transient::add_current(const std::string &node_one,
+        const std::string &node_two, const double &value) {
+
+}
+
+void Transient::add_resistance(const std::string &node_one,
+        const std::string &node_two, const double &value) {
+
+
+}
+
+
+double Transient::current_integral(const std::string &name) {
+    return 0;
+}
+
+double Transient::current_delta_average(const std::string &name) {
+    return 0;
+}
+
+double Transient::voltage_integral(const std::string &node_one,
+        const std::string &node_two) {
+
+    return 0;
+}
+
+double Transient::voltage_delta_average(const std::string &node_one,
+        const std::string &node_two) {
+
+    return 0;
+}
+
 bool Transient::run(Schematic &schematic, const std::ostream &stream) {
-    for(const auto &component : schematic.get_components())
-        component->simulate(shared_from_this(), schematic, 0);
+    for(double time = start_time; time < top_time; time += time_step) {
+        for(auto &component : schematic.components)
+            component->simulate(shared_from_this(), schematic, time);
+    }
 }

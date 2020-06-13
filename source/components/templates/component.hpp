@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "..\..\text_buffer.hpp"
-#include "..\..\parse.hpp"
+#include "../../text_buffer.hpp"
+#include "../../parse.hpp"
 
 class Schematic;
 class Operation;

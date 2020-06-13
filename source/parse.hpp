@@ -32,7 +32,7 @@ double parse_metric_value(const std::string &value) {
 
         // Add numbers and formatting characters straight to the 'result'
         // string
-        if(character >= '0' && character <= '9' || character == '-' ||
+        if((character >= '0' && character <= '9') || character == '-' ||
                 character == '.') {
 
             result += character;
