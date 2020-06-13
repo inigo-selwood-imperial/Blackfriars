@@ -23,11 +23,7 @@ std::shared_ptr<Inductor> Inductor::parse(TextBuffer &buffer) {
 void Inductor::simulate(const std::shared_ptr<Transient> &transient,
         const Schematic &schematic, const double &time) {
 
-    const double integral = transient->voltage_integral(nodes[0],
+    const double value = (1 / value) * transient->voltage_integral(nodes[0],
             nodes[1]);
-    const double delta = transient->voltage_delta_average(nodes[0],
-            nodes[1]);
-    const double step = transient->time_step;
-
-    const double value = (1 / value) * (integral + step * delta);
+    transient->add_current(nodes[0], nodes[1], value);
 }

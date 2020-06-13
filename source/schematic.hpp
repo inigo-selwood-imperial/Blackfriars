@@ -22,8 +22,7 @@ public:
 
     void add_component(const std::shared_ptr<Component> &component);
 
-    std::vector<std::shared_ptr<Component>> &get_components(
-            const Component::Type &type);
+    std::vector<std::shared_ptr<Component>> get_components();
 
     bool empty() const;
 
@@ -37,14 +36,9 @@ void Schematic::add_component(const std::shared_ptr<Component> &component) {
     components.push_back(component);
 }
 
-std::vector<std::shared_ptr<Component>> &Schematic::get_components(
-        const Component::Type &type = Component::Type::NONE) {
-
-    if(type == Component::Type::NONE)
-        return components;
-
-    else
-        return component_types[type];
+// Return the components
+std::vector<std::shared_ptr<Component>> Schematic::get_components() {
+    return components;
 }
 
 // Returns true if there are no components in the schematic
