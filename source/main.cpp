@@ -76,7 +76,7 @@ int main(int argument_count, char *argument_vector[]) {
             return -1;
         }
     }
-    std::ostream &stream = output_file_specified ? std::cout : output_file;
+    std::ostream &stream = output_file_specified ? output_file : std::cout;
 
     // Run the simulation
     if(simulation->run(stream) == false) {
