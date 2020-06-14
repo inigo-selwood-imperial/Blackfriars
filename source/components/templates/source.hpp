@@ -124,8 +124,8 @@ double Sinusoid::value(const double &time) const {
     // Do all kinds of complicated maths sh*te
     const double omega = 2 * 3.14159265359 * frequency;
     const double damping_factor = std::exp(-theta * (time - delay));
-    const double sine_value = std::sin(omega * (time - delay) + phi);
-    return amplitude * damping_factor * sine_value + offset;
+    const double sine = std::sin(omega * (time - delay) + phi);
+    return amplitude * damping_factor * sine + offset;
 }
 
 // Parse a value of indeterminate type
