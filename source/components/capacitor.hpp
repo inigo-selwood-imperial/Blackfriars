@@ -24,5 +24,5 @@ void Capacitor::simulate(const std::shared_ptr<Transient> &transient,
         const Schematic &schematic, const double &time) {
 
     const double value = (1 / value) * transient->current_integral(this->name);
-    transient->add_voltage(nodes[0], nodes[1], this->name, value);
+    transient->add_voltage(nodes[1], nodes[0], this->name, value);
 }

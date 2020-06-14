@@ -25,5 +25,5 @@ void Inductor::simulate(const std::shared_ptr<Transient> &transient,
 
     const double value = (1 / value) * transient->voltage_integral(nodes[0],
             nodes[1]);
-    transient->add_current(nodes[0], nodes[1], value);
+    transient->add_current(nodes[1], nodes[0], name, value);
 }
