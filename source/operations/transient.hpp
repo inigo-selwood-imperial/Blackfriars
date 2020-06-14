@@ -26,8 +26,8 @@ private:
     std::map<unsigned int, std::array<double, 3>> node_voltages;
     std::map<unsigned int, std::array<double, 3>> voltage_source_currents;
 
-    std::map<std::array<unsigned int, 2>, double> resistance_values;
-    std::map<std::array<unsigned int, 2>, double> current_source_values;
+    std::map<std::array<unsigned int, 3>, double> resistance_values;
+    std::map<std::array<unsigned int, 3>, double> current_source_values;
     std::map<std::array<unsigned int, 3>, double> voltage_source_values;
 
     void update_values(const Matrix &result);
@@ -46,12 +46,15 @@ public:
 
     static std::shared_ptr<Transient> parse(TextBuffer &buffer);
 
-    void add_voltage(const std::string &node_one, const std::string &node_two,
-            const std::string &name, const double &value);
-    void add_current(const std::string &node_one, const std::string &node_two,
+    void add_voltage(const std::string &node_one,
+            const std::string &node_two, const std::string &name,
+            const double &value);
+    void add_current(const std::string &node_one,
+            const std::string &node_two, const std::string &name,
             const double &value);
     void add_resistance(const std::string &node_one,
-            const std::string &node_two, const double &value);
+            const std::string &node_two, const std::string &name,
+            const double &value);
 
     double current_integral(const std::string &name);
     double voltage_integral(const std::string &node_one,
@@ -93,7 +96,7 @@ unsigned int Transient::get_node_index(const std::string &name) {
         return 0;
 
     auto &index = node_indices[name];
-    if(index == 0 && name != "0")
+    if(index == 0)
         index = node_indices.size();
     return index;
 }
@@ -147,12 +150,12 @@ inline Matrix Transient::create_conductance_matrix() {
 
         const unsigned int column = node_count + index;
         if(node_one) {
-            conductances(node_one - 1, column) = -1;
-            conductances(column, node_one - 1) = -1;
+            conductances(node_one - 1, column) = 1;
+            conductances(column, node_one - 1) = 1;
         }
         if(node_two) {
-            conductances(node_two - 1, column) = 1;
-            conductances(column, node_two - 1) = 1;
+            conductances(node_two - 1, column) = -1;
+            conductances(column, node_two - 1) = -1;
         }
     }
 
@@ -183,7 +186,7 @@ inline Matrix Transient::create_constants_matrix() {
         const auto index = pair.first[2];
         const auto value = pair.second;
 
-        constants(node_count + index, 0) += value;
+        constants(node_count + index, 0) = -value;
     }
 
     return constants;
@@ -245,31 +248,37 @@ void Transient::add_voltage(const std::string &node_one,
 
     const std::array<unsigned int, 3> index = {
         get_node_index(node_one),
-        get_node_index(node_two),
+        // get_node_index(node_two),
+        get_node_index(node_two + '\''),
         get_voltage_source_index(name)
     };
-
+    add_resistance(node_two + '\'', node_two, name + '\'', std::pow(10, -9));
     voltage_source_values[index] = value;
 }
 
 // Adds a current source to the simulation between two nodes
 void Transient::add_current(const std::string &node_one,
-        const std::string &node_two, const double &value) {
+        const std::string &node_two, const std::string &name,
+        const double &value) {
 
-    const std::array<unsigned int, 2> index = {
+    const std::array<unsigned int, 3> index = {
         get_node_index(node_one),
-        get_node_index(node_two)
+        get_node_index(node_two),
+        std::hash<std::string>{}(name)
     };
     current_source_values[index] = value;
+    add_resistance(node_one, node_two, name + "'", std::pow(10, 9));
 }
 
 // Adds a resistance to the circuit between two nodes
 void Transient::add_resistance(const std::string &node_one,
-        const std::string &node_two, const double &value) {
+        const std::string &node_two, const std::string &name,
+        const double &value) {
 
-    const std::array<unsigned int, 2> index = {
+    const std::array<unsigned int, 3> index = {
         get_node_index(node_one),
-        get_node_index(node_two)
+        get_node_index(node_two),
+        std::hash<std::string>{}(name)
     };
 
     resistance_values[index] = value;
@@ -313,6 +322,16 @@ bool Transient::run(Schematic &schematic, std::ostream &stream) {
     if(failed)
         return false;
 
+    stream << "time, ";
+    const auto node_names = schematic.get_node_names();
+    for(unsigned int index = 0; index < node_names.size(); index += 1) {
+        stream << "V(" << node_names[index] << ")";
+
+        if((index + 1) < node_names.size())
+            stream << ", ";
+    }
+    stream << std::endl;
+
     for(double time = start_time; time < stop_time; time += time_step) {
 
         // Simulate each component
@@ -345,13 +364,16 @@ bool Transient::run(Schematic &schematic, std::ostream &stream) {
         update_values(result);
 
         // Print the outputs
-        std::cout << time;
-        for(unsigned int index = 0; index < result.rows(); index += 1) {
-            std::cout << result(index, 0);
-            if((index + 1) < result.rows())
-                std::cout << ", ";
+        stream << time << ", ";
+        unsigned int index = 0;
+        const auto &node_names = schematic.get_node_names();
+        for(unsigned int index = 0; index < node_names.size(); index += 1) {
+            const auto node_name = node_names[index];
+            stream << result(get_node_index(node_name) - 1, 0);
+            if((index + 1) < node_names.size())
+                stream << ", ";
         }
-        std::cout << std::endl;
+        stream << std::endl;
     }
 
     return true;
