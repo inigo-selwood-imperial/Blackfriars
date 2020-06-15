@@ -4,6 +4,7 @@
 
 #include "../../text_buffer.hpp"
 #include "../../parse.hpp"
+#include "../../hash.hpp"
 
 class Schematic;
 class Operation;
@@ -27,12 +28,18 @@ public:
 
     std::string name;
 
-    std::vector<std::string> nodes;
+    Hash hash;
+
+    std::vector<std::string> node_names;
+
+    std::vector<Hash> node_hashes;
 
     Type type;
 
     Component() {
-        nodes.resize(2);
+        node_hashes.resize(2);
+        node_names.resize(2);
+        hash = 0;
         type = NONE;
     }
 

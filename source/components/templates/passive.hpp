@@ -2,6 +2,8 @@
 
 #include "component.hpp"
 
+#include "../../hash.hpp"
+
 class Passive {
 
 public:
@@ -45,12 +47,15 @@ std::shared_ptr<PassiveType> Passive::parse(TextBuffer &buffer,
 
     // Extract the passive's name
     passive->name = buffer.get_string(true);
+    passive->hash = hash_value(passive->name);
 
     // Extract the passive's nodes
     buffer.skip_whitespace();
-    passive->nodes[0] = buffer.get_string(true);
+    passive->node_names[0] = buffer.get_string(true);
+    passive->node_hashes[0] = hash_node(passive->node_names[0]);
     buffer.skip_whitespace();
-    passive->nodes[1] = buffer.get_string(true);
+    passive->node_names[1] = buffer.get_string(true);
+    passive->node_hashes[1] = hash_node(passive->node_names[1]);
 
     // Parse its value
     buffer.skip_whitespace();

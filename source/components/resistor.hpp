@@ -23,5 +23,5 @@ std::shared_ptr<Resistor> Resistor::parse(TextBuffer &buffer) {
 void Resistor::simulate(const std::shared_ptr<Transient> &transient,
         const Schematic &schematic, const double &time) {
 
-    transient->add_resistance(nodes[0], nodes[1], name, value);
+    transient->add_resistance(node_hashes[0], node_hashes[1], hash, value);
 }

@@ -23,7 +23,7 @@ std::shared_ptr<Inductor> Inductor::parse(TextBuffer &buffer) {
 void Inductor::simulate(const std::shared_ptr<Transient> &transient,
         const Schematic &schematic, const double &time) {
 
-    const double value = (1 / value) * transient->voltage_integral(nodes[0],
-            nodes[1]);
-    transient->add_current(nodes[1], nodes[0], name, value);
+    const double current = (1 / value) * transient->get_voltage_integral(
+            node_hashes[0], node_hashes[1]);
+    transient->add_inductance(node_hashes[0], node_hashes[1], hash, current);
 }

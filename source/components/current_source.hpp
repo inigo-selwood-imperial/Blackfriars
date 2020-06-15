@@ -21,5 +21,5 @@ std::shared_ptr<CurrentSource> CurrentSource::parse(TextBuffer &buffer) {
 void CurrentSource::simulate(const std::shared_ptr<Transient> &transient,
         const Schematic &schematic, const double &time) {
 
-    transient->add_current(nodes[0], nodes[1], name, value(time));
+    transient->add_current(node_hashes[0], node_hashes[1], hash, value(time));
 }

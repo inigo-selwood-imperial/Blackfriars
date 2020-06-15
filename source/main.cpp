@@ -4,9 +4,17 @@
 #include <string>
 #include <vector>
 
+#include <ctime>
+
 #include "simulation.hpp"
 
 int main(int argument_count, char *argument_vector[]) {
+
+    // Start timer
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+
     std::vector<std::string> arguments;
     for(unsigned int index = 1; index < argument_count; index += 1)
         arguments.push_back(argument_vector[index]);
@@ -83,6 +91,10 @@ int main(int argument_count, char *argument_vector[]) {
         std::cerr << "Failed to run simulation" << std::endl;
         return -1;
     }
+
+    // Stop timer
+    duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+    std::cout << "Process took: " << duration << " microseconds" << std::endl;
 
     return 0;
 }

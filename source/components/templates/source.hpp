@@ -8,6 +8,8 @@
 
 #include "component.hpp"
 
+#include "../../hash.hpp"
+
 class Function {
 
 public:
@@ -65,6 +67,16 @@ public:
 
     static std::shared_ptr<Sinusoid> parse(TextBuffer &buffer);
 
+    Sinusoid() {
+        offset = 0;
+        amplitude = 0;
+        frequency = 0;
+        delay = 0;
+        theta = 1;
+        phi = 0;
+        cycles = 0;
+    }
+
     double value(const double &time) const override;
 
 };
@@ -111,6 +123,8 @@ std::shared_ptr<Sinusoid> Sinusoid::parse(TextBuffer &buffer) {
 
 // Return the value of the function at a given time
 double Sinusoid::value(const double &time) const {
+    if(time == -1)
+        return offset;
 
     // Return if the delay time hasn't been reached
     if(time < delay)
@@ -182,11 +196,14 @@ std::shared_ptr<SourceType> Source::parse(TextBuffer &buffer,
 
     // Extract the source's name and nodes
     source->name = buffer.get_string(true);
+    source->hash = hash_value(source->name);
 
     buffer.skip_whitespace();
-    source->nodes[0] = buffer.get_string(true);
+    source->node_names[0] = buffer.get_string(true);
+    source->node_hashes[0] = hash_node(source->node_names[0]);
     buffer.skip_whitespace();
-    source->nodes[1] = buffer.get_string(true);
+    source->node_names[1] = buffer.get_string(true);
+    source->node_hashes[1] = hash_node(source->node_names[1]);
 
     // Parse its function
     buffer.skip_whitespace();
