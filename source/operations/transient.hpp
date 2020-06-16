@@ -50,10 +50,12 @@ private:
     inline Matrix create_constants_matrix();
 
     inline void print_headers(std::shared_ptr<std::ostream> stream,
-            const std::vector<std::pair<std::string, Hash>> &nodes);
+            const std::vector<std::pair<std::string, Hash>> &nodes,
+            const std::vector<std::shared_ptr<Component>> &components);
     inline void print_values(std::shared_ptr<std::ostream> stream,
             const Matrix &result,
             const std::vector<std::pair<std::string, Hash>> &nodes,
+            const std::vector<std::shared_ptr<Component>> &components,
             const double &time);
 
     inline void update_values(const Matrix &result);
@@ -243,16 +245,28 @@ Matrix Transient::create_constants_matrix() {
 // Prints the time, the names of the nodes whose voltages are to be displayed,
 // and the components whose currents will be printed
 void Transient::print_headers(std::shared_ptr<std::ostream> stream,
-        const std::vector<std::pair<std::string, Hash>> &nodes) {
+        const std::vector<std::pair<std::string, Hash>> &nodes,
+        const std::vector<std::shared_ptr<Component>> &components) {
 
+    // Print the time stamp
     (*stream) << "time, ";
+
+    // Print the voltage headers
     for(unsigned int index = 0; index < nodes.size(); index += 1) {
         const auto name = nodes[index].first;
         if(name == "0")
             continue;
 
         (*stream) << "V(" << name << ")";
-        if((index + 1) < nodes.size())
+        if(components.empty() == false || (index + 1) < nodes.size())
+            (*stream) << ", ";
+    }
+
+    // Print the current headers
+    for(unsigned int index = 0; index < components.size(); index += 1) {
+        const auto name = components[index]->name;
+        (*stream) << "I(" << name << ")";
+        if((index + 1) < components.size())
             (*stream) << ", ";
     }
     (*stream) << std::endl;
@@ -311,18 +325,31 @@ void Transient::update_values(const Matrix &result) {
 void Transient::print_values(std::shared_ptr<std::ostream> stream,
         const Matrix &result,
         const std::vector<std::pair<std::string, Hash>> &nodes,
+        const std::vector<std::shared_ptr<Component>> &components,
         const double &time) {
 
+    // Print the time stamp
     (*stream) << time << ", ";
+
+    // Print the node voltages
     for(unsigned int index = 0; index < nodes.size(); index += 1) {
         const Hash hash = nodes[index].second;
         if(hash == 0)
             continue;
 
         (*stream) << node_voltages[get_node_index(hash)][2];
-        if((index + 1) < nodes.size())
+        if(components.empty() == false || (index + 1) < nodes.size())
             (*stream) << ", ";
     }
+
+    for(unsigned int index = 0; index < components.size(); index += 1) {
+        const Hash hash = components[index]->hash;
+
+        (*stream) << component_currents[get_component_index(hash)][2];
+        if((index + 1) < components.size())
+            (*stream) << ", ";
+    }
+
     (*stream) << std::endl;
 }
 
@@ -516,7 +543,7 @@ bool Transient::run(Schematic &schematic,
     // The stream is only valid if the application hasn't had the 'silent' flag
     // set; in which case, print the .csv headers
     if(stream)
-        print_headers(stream, nodes);
+        print_headers(stream, nodes, components);
 
     // Calculte the time step
     // TODO: Make the time step adaptive, to prevent over/under sampling
@@ -548,7 +575,7 @@ bool Transient::run(Schematic &schematic,
 
         // If a stream's been provided, print to it
         if(stream)
-            print_values(stream, result, nodes, time);
+            print_values(stream, result, nodes, components, time);
     }
 
     // Failing all else, the simulation's succeeded
