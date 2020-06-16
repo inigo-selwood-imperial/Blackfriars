@@ -23,6 +23,8 @@ int main(int argument_count, char *argument_vector[]) {
     // Parse the command line arguments
     std::string input_file_name;
     std::string output_file_name;
+    unsigned int iterations = 1;
+    bool silent = false;
     for(unsigned int index = 0; index < argument_count; index += 1) {
 
         // Parse output file flag
@@ -36,6 +38,26 @@ int main(int argument_count, char *argument_vector[]) {
             output_file_name = arguments[index + 1];
             index += 1;
         }
+
+	else if(arguments[index] == "-iterations") {
+	    if(index + 1 >= argument_count) {
+		std::cerr << "-iterations flag present in arguments, but wasn't "
+			"followed by an integer" << std::endl;
+		return -1;
+	    }
+
+	    try {
+		iterations = std::stoi(arguments[index + 1]);
+	    }
+	    catch(...) {
+		std::cerr << "Field provided for no. iterations wasn't a valid"
+			"integer" << std::endl;
+		return -1;
+	    }
+	    index += 1;
+	}
+	else if(arguments[index] == "-silent")
+	    silent = true;
 
         // Parse input file name
         else if(input_file_name.empty())
@@ -73,8 +95,18 @@ int main(int argument_count, char *argument_vector[]) {
         return -1;
     }
 
-    // Open/assign the output method
+
+
+    // Check that the silent flag wasn't set in conjunction with an output 
+    // file
     const bool output_file_specified = output_file_name.empty() == false;
+    if(silent && output_file_specified) {
+	std::cerr << "The silent flag was set, but an output flag was also "
+		"provided" << std::endl;
+	return -1;
+    }
+
+    // Open/assign the output method
     std::ofstream output_file;
     if(output_file_specified) {
         output_file = std::ofstream(output_file_name);
@@ -86,15 +118,20 @@ int main(int argument_count, char *argument_vector[]) {
     }
     std::ostream &stream = output_file_specified ? output_file : std::cout;
 
-    // Run the simulation
-    if(simulation->run(stream) == false) {
-        std::cerr << "Failed to run simulation" << std::endl;
-        return -1;
+    for(unsigned int iteration = 0; iteration < iterations; iteration += 1) {
+    
+    	// Run the simulation
+        if(simulation->run(silent, stream) == false) {
+            std::cerr << "Failed to run simulation" << std::endl;
+            return -1;
+        }
     }
 
     // Stop timer
     duration = (std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000);
-    std::cout << "Process took: " << duration << " microseconds" << std::endl;
+    std::cout << "Process took: " << duration  << " microseconds (" << 
+	    (duration / iterations) << " microseconds per iteration)" << 
+	    std::endl;
 
     return 0;
 }
