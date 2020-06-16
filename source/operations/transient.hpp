@@ -39,8 +39,8 @@ private:
     std::map<std::array<Hash, 4>, double> currents;
 
     // Index, integral, previous, and present value
-    std::map<unsigned int, std::array<double, 3>> node_voltages;
-    std::map<unsigned int, std::array<double, 3>> component_currents;
+    std::map<unsigned int, std::array<double, 4>> node_voltages;
+    std::map<unsigned int, std::array<double, 4>> component_currents;
 
     void add_node(const Hash &hash) {
         if(hash == 0)
@@ -164,18 +164,18 @@ private:
         return constants;
     }
 
-    inline void print_headers(std::ostream &stream, const std::vector<std::pair<std::string, Hash>> &nodes) {
-        stream << "time, ";
+    inline void print_headers(std::shared_ptr<std::ostream> stream, const std::vector<std::pair<std::string, Hash>> &nodes) {
+        (*stream) << "time, ";
         for(unsigned int index = 0; index < nodes.size(); index += 1) {
             const auto name = nodes[index].first;
             if(name == "0")
                 continue;
 
-            stream << "V(" << name << ")";
+            (*stream) << "V(" << name << ")";
             if((index + 1) < nodes.size())
-                stream << ", ";
+                (*stream) << ", ";
         }
-        stream << std::endl;
+        (*stream) << std::endl;
     }
 
     inline void update_values(const Matrix &result) {
@@ -184,10 +184,12 @@ private:
             auto &integral = voltages[0];
             auto &previous = voltages[1];
             auto &present = voltages[2];
+            auto &gradient = voltages[3];
 
             integral += ((previous + present) / 2) * time_step;
             previous = present;
             present = result(node.second - 1, 0);
+            gradient = (present - previous) / time_step;
         }
 
         const unsigned int node_count = node_indices.size();
@@ -201,28 +203,30 @@ private:
             auto &integral = currents[0];
             auto &previous = currents[1];
             auto &present = currents[2];
+            auto &gradient = currents[3];
 
             integral += ((previous + present) / 2) * time_step;
             previous = present;
             present = result(node_count + instance - 1, 0);
+            gradient = (present - previous) / time_step;
         }
     }
 
-    inline void print_values(std::ostream &stream, const Matrix &result,
+    inline void print_values(std::shared_ptr<std::ostream> stream, const Matrix &result,
             const std::vector<std::pair<std::string, Hash>> &nodes,
             const double &time) {
 
-        stream << time << ", ";
+        (*stream) << time << ", ";
         for(unsigned int index = 0; index < nodes.size(); index += 1) {
             const Hash hash = nodes[index].second;
             if(hash == 0)
                 continue;
 
-            stream << node_voltages[get_node_index(hash)][2];
+            (*stream) << node_voltages[get_node_index(hash)][2];
             if((index + 1) < nodes.size())
-                stream << ", ";
+                (*stream) << ", ";
         }
-        stream << std::endl;
+        (*stream) << std::endl;
     }
 
 public:
@@ -232,6 +236,12 @@ public:
     double time_step;
 
     static std::shared_ptr<Transient> parse(TextBuffer &buffer);
+
+    Transient() {
+        start_time = 0;
+        stop_time = 0;
+        time_step = 1;
+    }
 
     void add_resistance(const Hash &node_one, const Hash &node_two, const Hash &hash, const double &value) {
         add_node(node_one);
@@ -251,14 +261,19 @@ public:
         add_node(node_one);
         add_node(node_two);
 
+        // auto proxy_node = hash_combine(node_one, hash);
+        // add_node(proxy_node);
+
         std::array<unsigned int, 4> index = {
             get_node_index(node_one),
+            // get_node_index(proxy_node),
             get_node_index(node_two),
             hash,
             ValueIndex::VOLTAGE
         };
         voltages[index] = value;
         add_component(VOLTAGE, hash);
+        // add_resistance(proxy_node, node_two, hash, std::pow(10, -15));
     }
 
     void add_current(const Hash &node_one, const Hash &node_two, const Hash &hash, const double &value) {
@@ -273,6 +288,7 @@ public:
         };
         currents[index] = value;
         add_component(CURRENT, hash);
+        // add_resistance(node_one, node_two, hash, std::pow(10, 15));
     }
 
     double get_current_integral(const Hash &hash) {
@@ -290,7 +306,18 @@ public:
         return value;
     }
 
-    bool run(Schematic &schematic, std::ostream &stream);
+    double get_voltage(const Hash &node_one, const Hash &node_two) {
+        double value;
+        unsigned int index_one = get_node_index(node_one);
+        unsigned int index_two = get_node_index(node_two);
+        if(index_one)
+            value += node_voltages[index_one][2];
+        if(index_two)
+            value -= node_voltages[index_two][2];
+        return value;
+    }
+
+    bool run(Schematic &schematic, std::shared_ptr<std::ostream> stream);
 
 };
 
@@ -322,26 +349,44 @@ std::shared_ptr<Transient> Transient::parse(TextBuffer &buffer) {
         transient->stop_time,
         transient->start_time
     };
-    unsigned int index = 0;
-    for(double &parameter : parameters) {
-        if(index >= values.size())
-            break;
 
+    // If only one values's been specified, it's the stop time
+    if(values.size() == 1) {
         try {
-            parameter = parse_time_value(values[index]);
+            transient->stop_time = parse_time_value(values[0]);
         }
         catch(...) {
             std::cerr << "Couldn't parse transient parameter '" << std::endl;
             return nullptr;
         }
+    }
 
-        index += 1;
+    // If there are multiple values, there'll be a variable number of them, in
+    // the order shown in the reference wrapper vector above
+    else {
+        unsigned int index = 0;
+        for(double &parameter : parameters) {
+            if(index >= values.size())
+                break;
+
+            try {
+                parameter = parse_time_value(values[index]);
+            }
+            catch(...) {
+                std::cerr << "Couldn't parse transient parameter '" << std::endl;
+                return nullptr;
+            }
+
+            index += 1;
+        }
     }
 
     return transient;
 }
 
-bool Transient::run(Schematic &schematic, std::ostream &stream) {
+bool Transient::run(Schematic &schematic,
+        std::shared_ptr<std::ostream> stream) {
+
     bool failed = false;
     if(time_step == 0) {
         std::cerr << "Time step can't be zero" << std::endl;
@@ -362,10 +407,12 @@ bool Transient::run(Schematic &schematic, std::ostream &stream) {
         return false;
 
     const auto nodes = schematic.get_nodes();
-
-    print_headers(stream, nodes);
-
     const auto components = schematic.get_components();
+
+    if(stream)
+        print_headers(stream, nodes);
+
+    time_step = std::min((stop_time - start_time) / 250, time_step);
     for(double time = start_time; time < stop_time; time += time_step) {
 
         // Simulate components
@@ -388,21 +435,10 @@ bool Transient::run(Schematic &schematic, std::ostream &stream) {
             return false;
         }
 
-        // std::cout << "Finished conductance matrix: " << std::endl << conductances << std::endl;
-        // std::cout << "Finished constants matrix: " << std::endl << constants << std::endl;
-        // std::cout << "Result matrix: " << std::endl << result << std::endl;
-
         update_values(result);
-        print_values(stream, result, nodes, time);
 
-        // for(const auto voltage : node_voltages) {
-        //     std::cout << voltage.first << " | " << voltage.second[0] << " | " << voltage.second[1] << " | " << voltage.second[2] << std::endl;
-        // }
-        // std::cout << std::endl;
-        // for(const auto current : component_currents) {
-        //     std::cout << current.first << " | " << current.second[0] << " | " << current.second[1] << " | " << current.second[2] << std::endl;
-        // }
-        // std::cout << std::endl;
+        if(stream)
+            print_values(stream, result, nodes, time);
     }
 
     return true;

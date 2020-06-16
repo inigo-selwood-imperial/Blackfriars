@@ -35,7 +35,7 @@ public:
     static std::shared_ptr<Component> parse_component(
             TextBuffer &buffer);
 
-    bool run(std::ostream &stream);
+    bool run(std::shared_ptr<std::ostream> stream);
 
 };
 
@@ -146,7 +146,7 @@ std::shared_ptr<Component>  Simulation::parse_component(TextBuffer &buffer) {
 }
 
 // Run the simulation provided
-bool Simulation::run(std::ostream &stream) {
+bool Simulation::run(std::shared_ptr<std::ostream> stream) {
 
     // Check there's an operation specified
     bool failed = false;

@@ -39,25 +39,28 @@ int main(int argument_count, char *argument_vector[]) {
             index += 1;
         }
 
-	else if(arguments[index] == "-iterations") {
-	    if(index + 1 >= argument_count) {
-		std::cerr << "-iterations flag present in arguments, but wasn't "
-			"followed by an integer" << std::endl;
-		return -1;
-	    }
+        // Handle iteration specifier
+    	else if(arguments[index] == "-iterations") {
+    	    if(index + 1 >= argument_count) {
+        		std::cerr << "-iterations flag present in arguments, but wasn't "
+        			"followed by an integer" << std::endl;
+        		return -1;
+    	    }
 
-	    try {
-		iterations = std::stoi(arguments[index + 1]);
-	    }
-	    catch(...) {
-		std::cerr << "Field provided for no. iterations wasn't a valid"
-			"integer" << std::endl;
-		return -1;
-	    }
-	    index += 1;
-	}
-	else if(arguments[index] == "-silent")
-	    silent = true;
+    	    try {
+        		iterations = std::stoi(arguments[index + 1]);
+    	    }
+    	    catch(...) {
+        		std::cerr << "Field provided for no. iterations wasn't a valid"
+        			"integer" << std::endl;
+        		return -1;
+    	    }
+    	    index += 1;
+    	}
+
+        // Handle silent input flag
+    	else if(arguments[index] == "-silent")
+    	    silent = true;
 
         // Parse input file name
         else if(input_file_name.empty())
@@ -97,31 +100,36 @@ int main(int argument_count, char *argument_vector[]) {
 
 
 
-    // Check that the silent flag wasn't set in conjunction with an output 
+    // Check that the silent flag wasn't set in conjunction with an output
     // file
     const bool output_file_specified = output_file_name.empty() == false;
     if(silent && output_file_specified) {
-	std::cerr << "The silent flag was set, but an output flag was also "
-		"provided" << std::endl;
-	return -1;
+    	std::cerr << "The silent flag was set, but an output flag was also "
+    		"provided" << std::endl;
+    	return -1;
     }
 
     // Open/assign the output method
-    std::ofstream output_file;
+    std::shared_ptr<std::ostream> stream = nullptr;
     if(output_file_specified) {
-        output_file = std::ofstream(output_file_name);
-        if(output_file.is_open() == false) {
+        auto output_stream = std::shared_ptr<std::ofstream>(new std::ofstream(
+                output_file_name));
+        if(output_stream->is_open() == false) {
             std::cerr << "Couldn't open/create output file '" <<
                     output_file_name << "'" << std::endl;
             return -1;
         }
+
+        stream = output_stream;
     }
-    std::ostream &stream = output_file_specified ? output_file : std::cout;
+
+    else if(silent == false)
+        stream = std::shared_ptr<std::ostream>(&std::cout, [](void*) {});
 
     for(unsigned int iteration = 0; iteration < iterations; iteration += 1) {
-    
+
     	// Run the simulation
-        if(simulation->run(silent, stream) == false) {
+        if(simulation->run(stream) == false) {
             std::cerr << "Failed to run simulation" << std::endl;
             return -1;
         }
@@ -129,9 +137,9 @@ int main(int argument_count, char *argument_vector[]) {
 
     // Stop timer
     duration = (std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000);
-    std::cout << "Process took: " << duration  << " microseconds (" << 
-	    (duration / iterations) << " microseconds per iteration)" << 
-	    std::endl;
+    std::cout << "Process took: " << duration  << " microseconds (" <<
+    	    (duration / iterations) << " microseconds per iteration)" <<
+    	    std::endl;
 
     return 0;
 }
