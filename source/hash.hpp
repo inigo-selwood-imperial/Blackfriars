@@ -12,4 +12,6 @@ Hash hash_node(const std::string &node) {
     return (node == "0") ? 0 : hash_value(node);
 }
 
-// Hash hash_combine()
+Hash hash_combine(Hash one, const Hash &two) {
+    return one ^= two + 0x9e3779b9 + (one << 6) + (one >> 2);
+}
