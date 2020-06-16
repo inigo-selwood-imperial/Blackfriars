@@ -93,7 +93,7 @@ int main(int argument_count, char *argument_vector[]) {
     }
 
     // Stop timer
-    duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+    duration = (std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000);
     std::cout << "Process took: " << duration << " microseconds" << std::endl;
 
     return 0;

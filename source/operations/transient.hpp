@@ -21,38 +21,214 @@ class Transient : public std::enable_shared_from_this<Transient>,
 
 private:
 
-    std::map<Hash, unsigned int> nodes;
+    enum ValueIndex {
+        CURRENT,
+        RESISTANCE,
+        VOLTAGE
+    };
 
-    std::map<std::array<Hash, 3>, double> resistances;
-    std::map<std::array<Hash, 3>, double> capacitances;
-    std::map<std::array<Hash, 3>, double> inductances;
-    std::map<std::array<Hash, 3>, double> currents;
-    std::map<std::array<Hash, 3>, double> voltages;
+    std::map<Hash, unsigned int> node_indices;
 
-    // Integral, previous, present
+    std::map<Hash, unsigned int> component_indices;
+    std::map<std::pair<ValueIndex, Hash>, unsigned int> component_instances;
+    std::map<ValueIndex, unsigned int> instance_counts;
+
+    std::map<std::array<Hash, 4>, double> voltages;
+    std::map<std::array<Hash, 4>, double> resistances;
+    std::map<std::array<Hash, 4>, double> currents;
+
     std::map<unsigned int, std::array<double, 3>> node_voltages;
-    std::map<unsigned int, std::array<double, 3>> source_currents;
+    std::map<unsigned int, std::array<double, 3>> component_currents;
 
-    unsigned int get_node(const Hash &hash) {
+    void add_node(const Hash &hash) {
+        if(hash == 0)
+            return;
+
+        auto &value = node_indices[hash];
+        if(value == 0) {
+            value = node_indices.size();
+            node_voltages[value] = {0, 0, 0};
+        }
+    }
+
+    void add_component(const ValueIndex &index, const Hash &hash) {
+        const auto &indices_size = component_indices.size();
+        auto &index_value = component_indices[hash];
+        if(index_value == 0) {
+            index_value = indices_size;
+            component_currents[index_value] = {0, 0, 0};
+        }
+
+        auto &instance_count = instance_counts[index];
+        auto &instance_value = component_instances[std::pair<ValueIndex, Hash>({index, hash})];
+        if(instance_value == 0) {
+            instance_value = instance_count;
+            instance_count += 1;
+        }
+    }
+
+    unsigned int get_node_index(const Hash &hash) {
         if(hash == 0)
             return 0;
 
-        auto &index = nodes[hash];
-        if(index == 0)
-            index = nodes.size();
-        return index;
+        const auto &value = node_indices[hash];
+        if(value == 0) {
+            std::cerr << "Node indexing error" << std::endl;
+            throw -1;
+        }
+
+        return value;
     }
 
-    void add_parameter(std::map<std::array<Hash, 3>, double> &container,
-        const Hash &node_one, const Hash &node_two, const Hash &hash,
-        const double &value) {
+    unsigned int get_component_index(const Hash &hash) {
+        const auto &value = component_indices[hash];
+        return value;
+    }
 
-        std::array<Hash, 3> index = {
-            get_node(node_one),
-            get_node(node_two),
-            hash
-        };
-        container[index] = value;
+    unsigned int get_component_instance(const Hash &hash, const ValueIndex &index) {
+        const auto &value = component_instances[std::pair<ValueIndex, Hash>({index, hash})];
+        return value;
+    }
+
+    inline Matrix create_conductance_matrix() {
+        const unsigned int node_count = node_indices.size();
+        const unsigned int size = node_count + voltages.size();
+        Matrix conductances(size, size);
+
+        for(const auto &resistance : resistances) {
+            const auto &node_one = resistance.first[0];
+            const auto &node_two = resistance.first[1];
+            const auto value = resistance.second;
+
+            if(node_one)
+                conductances(node_one - 1, node_one - 1) += 1 / value;
+            if(node_two)
+                conductances(node_two - 1, node_two - 1) += 1 / value;
+            if(node_one && node_two) {
+                conductances(node_one - 1, node_two - 1) += value;
+                conductances(node_two - 1, node_one - 1) += value;
+            }
+        }
+
+        for(unsigned int row = 0; row < node_count; row += 1) {
+            for(unsigned int column = 0; column < node_count; column += 1) {
+                if(row == column)
+                    continue;
+                else if(conductances(row, column))
+                    conductances(row, column) = -1 / conductances(row, column);
+            }
+        }
+
+        for(const auto &voltage : voltages) {
+            const unsigned int node_one = voltage.first[0];
+            const unsigned int node_two = voltage.first[1];
+            const auto instance = get_component_instance(voltage.first[2],
+                    ValueIndex(voltage.first[3]));
+            const auto value = voltage.second;
+
+            const unsigned int offset = node_count + instance - 1;
+            if(node_one) {
+                conductances(node_one - 1, offset) = -1;
+                conductances(offset, node_one - 1) = -1;
+            }
+            if(node_two) {
+                conductances(node_two - 1, offset) = 1;
+                conductances(offset, node_two - 1) = 1;
+            }
+        }
+
+        return conductances;
+    }
+
+    inline Matrix create_constants_matrix() {
+        const unsigned int node_count = node_indices.size();
+        const unsigned int size = node_count + voltages.size();
+        Matrix constants(1, size);
+
+        for(const auto &current : currents) {
+            const auto node_one = current.first[0];
+            const auto node_two = current.first[1];
+            const double value = current.second;
+
+            if(node_one)
+                constants(node_one - 1, 0) += value;
+            if(node_two)
+                constants(node_two - 1, 0) -= value;
+        }
+
+        for(const auto &voltage : voltages) {
+            const auto instance = get_component_instance(voltage.first[2],
+                    ValueIndex(voltage.first[3]));
+            const auto value = voltage.second;
+
+            constants(node_count + instance - 1, 0) -= value;
+        }
+
+        return constants;
+    }
+
+    inline void print_headers(std::ostream &stream, const std::vector<std::pair<std::string, Hash>> &nodes) {
+        stream << "time, ";
+        for(unsigned int index = 0; index < nodes.size(); index += 1) {
+            const auto name = nodes[index].first;
+            if(name == "0")
+                continue;
+
+            stream << "V(" << name << ")";
+            if((index + 1) < nodes.size())
+                stream << ", ";
+        }
+        stream << std::endl;
+    }
+
+    inline void update_values(const Matrix &result) {
+
+        for(const auto &node : node_indices) {
+            auto &voltages = node_voltages[node.second];
+            auto &integral = voltages[0];
+            auto &previous = voltages[1];
+            auto &present = voltages[2];
+
+            integral += ((previous + present) / 2) * time_step;
+            previous = present;
+            present = result(node.second - 1, 0);
+        }
+
+        const unsigned int node_count = node_indices.size();
+        for(const auto &voltage : voltages) {
+            const auto hash = voltage.first[2];
+            const auto index = get_component_index(hash);
+            const auto instance = get_component_instance(hash,
+                    ValueIndex::VOLTAGE);
+
+            auto &currents = component_currents[index];
+            auto &integral = currents[0];
+            auto &previous = currents[1];
+            auto &present = currents[2];
+
+            integral += ((previous + present) / 2) * time_step;
+            previous = present;
+            present = result(node_count + instance - 2, 0);
+
+            // std::cout << hash << ", " << instance << ", " << index << ", " << integral << ", " << previous << ", " << present << std::endl;
+        }
+    }
+
+    inline void print_values(std::ostream &stream, const Matrix &result,
+            const std::vector<std::pair<std::string, Hash>> &nodes,
+            const double &time) {
+
+        stream << time << ", ";
+        for(unsigned int index = 0; index < nodes.size(); index += 1) {
+            const Hash hash = nodes[index].second;
+            if(hash == 0)
+                continue;
+
+            stream << node_voltages[get_node_index(hash)][2];
+            if((index + 1) < nodes.size())
+                stream << ", ";
+        }
+        stream << std::endl;
     }
 
 public:
@@ -63,42 +239,62 @@ public:
 
     static std::shared_ptr<Transient> parse(TextBuffer &buffer);
 
-    void add_resistance(const Hash &node_one, const Hash &node_two,
-            const Hash &hash, const double &value) {
+    void add_resistance(const Hash &node_one, const Hash &node_two, const Hash &hash, const double &value) {
+        add_node(node_one);
+        add_node(node_two);
 
-        add_parameter(resistances, node_one, node_two, hash, value);
+        std::array<unsigned int, 4> index = {
+            get_node_index(node_one),
+            get_node_index(node_two),
+            hash,
+            ValueIndex::RESISTANCE
+        };
+        resistances[index] = value;
+        add_component(RESISTANCE, hash);
     }
 
-    void add_capacitance(const Hash &node_one, const Hash &node_two,
-            const Hash &hash, const double &value) {
+    void add_voltage(const Hash &node_one, const Hash &node_two, const Hash &hash, const double &value) {
+        add_node(node_one);
+        add_node(node_two);
 
-        add_parameter(capacitances, node_one, node_two, hash, value);
+        std::array<unsigned int, 4> index = {
+            get_node_index(node_one),
+            get_node_index(node_two),
+            hash,
+            ValueIndex::VOLTAGE
+        };
+        voltages[index] = value;
+        add_component(VOLTAGE, hash);
     }
 
-    void add_inductance(const Hash &node_one, const Hash &node_two,
-            const Hash &hash, const double &value) {
+    void add_current(const Hash &node_one, const Hash &node_two, const Hash &hash, const double &value) {
+        add_node(node_one);
+        add_node(node_two);
 
-        add_parameter(inductances, node_one, node_two, hash, value);
-    }
-
-    void add_voltage(const Hash &node_one, const Hash &node_two,
-            const Hash &hash, const double &value) {
-
-        add_parameter(voltages, node_one, node_two, hash, value);
-    }
-
-    void add_current(const Hash &node_one, const Hash &node_two,
-            const Hash &hash, const double &value) {
-
-        add_parameter(currents, node_one, node_two, hash, value);
-    }
-
-    double get_voltage_integral(const Hash &node_one, const Hash &node_two) {
-        return node_voltages[get_node(node_one)][0] - node_voltages[get_node(node_two)][0];
+        std::array<unsigned int, 4> index = {
+            get_node_index(node_one),
+            get_node_index(node_two),
+            hash,
+            ValueIndex::CURRENT
+        };
+        currents[index] = value;
+        add_component(CURRENT, hash);
     }
 
     double get_current_integral(const Hash &hash) {
-        return source_currents[get_instance]
+        unsigned int index = get_component_index(hash);
+        return index ? component_currents[index][0] : 0;
+    }
+
+    double get_voltage_integral(const Hash &node_one, const Hash &node_two) {
+        double value;
+        unsigned int index_one = get_node_index(node_one);
+        unsigned int index_two = get_node_index(node_two);
+        if(index_one)
+            value += node_voltages[index_one - 1][0];
+        if(index_two)
+            value -= node_voltages[index_two - 1][0];
+        return value;
     }
 
     bool run(Schematic &schematic, std::ostream &stream);
@@ -172,149 +368,35 @@ bool Transient::run(Schematic &schematic, std::ostream &stream) {
     if(failed)
         return false;
 
-    for(const auto &node_hash : schematic.get_node_hashes()) {
-        node_voltages[get_node(node_hash)] = {0, 0, 0};
-    }
+    const auto nodes = schematic.get_nodes();
 
-    stream << "time, ";
-    const auto node_names = schematic.get_node_names();
-    for(unsigned int index = 0; index < node_names.size(); index += 1) {
-        stream << "V(" << node_names[index] << ')';
-        if((index + 1) < node_names.size())
-            stream << ", ";
-    }
-    stream << std::endl;
+    print_headers(stream, nodes);
 
-    for(const auto &component : schematic.get_components())
-        component->simulate(shared_from_this(), schematic, -1);
-
-    // stream << "Capacitances: " << capacitances.size() << std::endl;
-    // stream << "Inductances: " << inductances.size() << std::endl;
-    // stream << "Resistances: " << resistances.size() << std::endl;
-    // stream << "Currents: " << currents.size() << std::endl;
-    // stream << "Voltages: " << voltages.size() << std::endl;
-
-    const unsigned int node_count = nodes.size();
-    const unsigned int voltage_count = voltages.size();
-    const unsigned int capacitor_count = capacitances.size();
-
-    const unsigned int size = node_count + voltage_count + capacitor_count;
-
+    const auto components = schematic.get_components();
     for(double time = start_time; time < stop_time; time += time_step) {
 
-        for(const auto &component : schematic.get_components(~Component::Type::RESISTOR))
+        // Simulate components
+        for(const auto &component : components)
             component->simulate(shared_from_this(), schematic, time);
 
-        Matrix conductances(size, size);
+        // Make conductance matrix
+        auto conductances = create_conductance_matrix();
 
-        for(const auto &resistance : resistances) {
-            const unsigned int node_one = resistance.first[0];
-            const unsigned int node_two = resistance.first[1];
-            const double value = resistance.second;
+        // Make constants matrix
+        auto constants = create_constants_matrix();
 
-            if(node_one)
-                conductances(node_one - 1, node_one - 1) += 1 / value;
-            if(node_two)
-                conductances(node_two - 1, node_two - 1) += 1 / value;
-            if(node_one && node_two) {
-                conductances(node_one - 1, node_two - 1) += value;
-                conductances(node_two - 1, node_one - 1) += value;
-            }
+        // Calculate result
+        Matrix result;
+        try {
+            result = conductances * constants;
+        }
+        catch(...) {
+            std::cerr << "Circuit has no solution" << std::endl;
+            return false;
         }
 
-        for(unsigned int row = 0; row < node_count; row += 1) {
-            for(unsigned int column = 0; column < node_count; column += 1) {
-                if(row == column)
-                    continue;
-                else if(conductances(row, column))
-                    conductances(row, column) = -1 / conductances(row, column);
-            }
-        }
-
-        Matrix constants(1, size);
-
-        unsigned int index = 0;
-        for(const auto &voltage : voltages) {
-            const unsigned int node_one = voltage.first[0];
-            const unsigned int node_two = voltage.first[1];
-            const auto value = voltage.second;
-
-            const unsigned int offset = node_count + index;
-            if(node_one) {
-                conductances(node_one - 1, offset) = 1;
-                conductances(offset, node_one - 1) = 1;
-            }
-            if(node_two) {
-                conductances(node_two - 1, offset) = -1;
-                conductances(offset, node_two - 1) = -1;
-            }
-
-            constants(node_count + index, 0) = -value;
-
-            index += 1;
-        }
-
-        for(const auto &capacitance : capacitances) {
-            const unsigned int node_one = capacitance.first[0];
-            const unsigned int node_two = capacitance.first[1];
-            const auto value = capacitance.second;
-
-            const unsigned int offset = node_count + voltage_count + index - 1;
-            if(node_one) {
-                conductances(node_one - 1, offset) = 1;
-                conductances(offset, node_one - 1) = 1;
-            }
-            if(node_two) {
-                conductances(node_two - 1, offset) = -1;
-                conductances(offset, node_two - 1) = -1;
-            }
-
-            constants(node_count + index, 0) = -value;
-
-            index += 1;
-        }
-
-        for(const auto &inductance : inductances) {
-            const auto node_one = inductance.first[0];
-            const auto node_two = inductance.first[1];
-
-            const double value = inductance.second;
-
-            if(node_one)
-                constants(node_one - 1, 0) += value;
-            if(node_two)
-                constants(node_two - 1, 0) -= value;
-        }
-
-        // stream << conductances << std::endl;
-        // stream << constants << std::endl;
-
-        const auto result = conductances.inverse() * constants;
-
-        for(const auto &node : nodes) {
-
-            auto &integral = node_voltages[node.second][0];
-            auto &previous = node_voltages[node.second][1];
-            auto &present = node_voltages[node.second][2];
-
-            // std::cout << "N(" << node.second << "), " << integral << ", " << previous << ", " << present << std::endl;
-            integral += ((previous + present) / 2) * time_step;
-            previous = present;
-            present = result(node.second - 1, 0);
-        }
-
-        for(const auto &source : sources) {
-            auto &integral = source_currents[source.second][0];
-            auto &previous = source_currents[source.second][1];
-        }
-
-        stream << time << ", ";
-        for(unsigned int index = 0; index < node_names.size(); index += 1) {
-            stream << result(index, 0);
-            if((index + 1) < node_names.size())
-                stream << ", ";
-        }
-        stream << std::endl;
+        update_values(result);
+        // print_values(stream, result, nodes, time);
     }
 
     return true;

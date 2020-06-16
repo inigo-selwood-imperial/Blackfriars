@@ -23,7 +23,7 @@ std::shared_ptr<Capacitor> Capacitor::parse(TextBuffer &buffer) {
 void Capacitor::simulate(const std::shared_ptr<Transient> &transient,
         const Schematic &schematic, const double &time) {
 
-    const double voltage = (1 / value) * transient->get_voltage_integral(
+    const double voltage = (1 / value) * transient->get_current_integral(
             hash);
-    transient->add_capacitance(node_hashes[0], node_hashes[1], hash, voltage);
+    transient->add_voltage(node_hashes[0], node_hashes[1], hash, voltage);
 }
