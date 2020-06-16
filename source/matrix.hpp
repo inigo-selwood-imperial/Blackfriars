@@ -383,7 +383,7 @@ Matrix::Matrix(const std::initializer_list<std::vector<double>> &values) {
     unsigned int rows = values.size();
     unsigned int columns = 0;
     for(const auto &row : values)
-        columns = std::max(row.size(), columns);
+        columns = std::max((unsigned int)row.size(), columns);
     resize(columns, rows);
 
     // Fill the matrix with the relevant values
