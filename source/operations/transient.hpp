@@ -27,16 +27,18 @@ private:
         VOLTAGE
     };
 
+    // Hash -> index
     std::map<Hash, unsigned int> node_indices;
-
     std::map<Hash, unsigned int> component_indices;
     std::map<std::pair<ValueIndex, Hash>, unsigned int> component_instances;
     std::map<ValueIndex, unsigned int> instance_counts;
 
+    // Node one index, node two index, component hash, value index, and value
     std::map<std::array<Hash, 4>, double> voltages;
     std::map<std::array<Hash, 4>, double> resistances;
     std::map<std::array<Hash, 4>, double> currents;
 
+    // Index, integral, previous, and present value
     std::map<unsigned int, std::array<double, 3>> node_voltages;
     std::map<unsigned int, std::array<double, 3>> component_currents;
 
@@ -45,25 +47,21 @@ private:
             return;
 
         auto &value = node_indices[hash];
-        if(value == 0) {
+        if(value == 0)
             value = node_indices.size();
-            node_voltages[value] = {0, 0, 0};
-        }
     }
 
     void add_component(const ValueIndex &index, const Hash &hash) {
-        const auto &indices_size = component_indices.size();
         auto &index_value = component_indices[hash];
-        if(index_value == 0) {
+        const auto &indices_size = component_indices.size();
+        if(index_value == 0)
             index_value = indices_size;
-            component_currents[index_value] = {0, 0, 0};
-        }
 
-        auto &instance_count = instance_counts[index];
         auto &instance_value = component_instances[std::pair<ValueIndex, Hash>({index, hash})];
+        auto &instance_count = instance_counts[index];
         if(instance_value == 0) {
-            instance_value = instance_count;
             instance_count += 1;
+            instance_value = instance_count;
         }
     }
 
@@ -81,13 +79,11 @@ private:
     }
 
     unsigned int get_component_index(const Hash &hash) {
-        const auto &value = component_indices[hash];
-        return value;
+        return component_indices[hash];
     }
 
     unsigned int get_component_instance(const Hash &hash, const ValueIndex &index) {
-        const auto &value = component_instances[std::pair<ValueIndex, Hash>({index, hash})];
-        return value;
+        return component_instances[std::pair<ValueIndex, Hash>({index, hash})];
     }
 
     inline Matrix create_conductance_matrix() {
@@ -96,6 +92,7 @@ private:
         Matrix conductances(size, size);
 
         for(const auto &resistance : resistances) {
+
             const auto &node_one = resistance.first[0];
             const auto &node_two = resistance.first[1];
             const auto value = resistance.second;
@@ -128,12 +125,12 @@ private:
 
             const unsigned int offset = node_count + instance - 1;
             if(node_one) {
-                conductances(node_one - 1, offset) = -1;
-                conductances(offset, node_one - 1) = -1;
+                conductances(node_one - 1, offset) = 1;
+                conductances(offset, node_one - 1) = 1;
             }
             if(node_two) {
-                conductances(node_two - 1, offset) = 1;
-                conductances(offset, node_two - 1) = 1;
+                conductances(node_two - 1, offset) = -1;
+                conductances(offset, node_two - 1) = -1;
             }
         }
 
@@ -182,7 +179,6 @@ private:
     }
 
     inline void update_values(const Matrix &result) {
-
         for(const auto &node : node_indices) {
             auto &voltages = node_voltages[node.second];
             auto &integral = voltages[0];
@@ -208,9 +204,7 @@ private:
 
             integral += ((previous + present) / 2) * time_step;
             previous = present;
-            present = result(node_count + instance - 2, 0);
-
-            // std::cout << hash << ", " << instance << ", " << index << ", " << integral << ", " << previous << ", " << present << std::endl;
+            present = result(node_count + instance - 1, 0);
         }
     }
 
@@ -282,8 +276,7 @@ public:
     }
 
     double get_current_integral(const Hash &hash) {
-        unsigned int index = get_component_index(hash);
-        return index ? component_currents[index][0] : 0;
+        return component_currents[get_component_index(hash)][0];
     }
 
     double get_voltage_integral(const Hash &node_one, const Hash &node_two) {
@@ -291,9 +284,9 @@ public:
         unsigned int index_one = get_node_index(node_one);
         unsigned int index_two = get_node_index(node_two);
         if(index_one)
-            value += node_voltages[index_one - 1][0];
+            value += node_voltages[index_one][0];
         if(index_two)
-            value -= node_voltages[index_two - 1][0];
+            value -= node_voltages[index_two][0];
         return value;
     }
 
@@ -388,15 +381,28 @@ bool Transient::run(Schematic &schematic, std::ostream &stream) {
         // Calculate result
         Matrix result;
         try {
-            result = conductances * constants;
+            result = conductances.inverse() * constants;
         }
         catch(...) {
             std::cerr << "Circuit has no solution" << std::endl;
             return false;
         }
 
+        // std::cout << "Finished conductance matrix: " << std::endl << conductances << std::endl;
+        // std::cout << "Finished constants matrix: " << std::endl << constants << std::endl;
+        // std::cout << "Result matrix: " << std::endl << result << std::endl;
+
         update_values(result);
-        // print_values(stream, result, nodes, time);
+        print_values(stream, result, nodes, time);
+
+        // for(const auto voltage : node_voltages) {
+        //     std::cout << voltage.first << " | " << voltage.second[0] << " | " << voltage.second[1] << " | " << voltage.second[2] << std::endl;
+        // }
+        // std::cout << std::endl;
+        // for(const auto current : component_currents) {
+        //     std::cout << current.first << " | " << current.second[0] << " | " << current.second[1] << " | " << current.second[2] << std::endl;
+        // }
+        // std::cout << std::endl;
     }
 
     return true;
