@@ -6,8 +6,6 @@
 
 #include <cmath>
 
-#include "log.hpp"
-
 /* ******************************************************************** Synopsis
 
 The Newton-Raphson algorithm is used by the application to solve equations for
@@ -48,7 +46,7 @@ double evaluate(const std::function<double(double)> &function,
 
     while(std::fabs(delta - 0) >= precision && index < iteration_bound) {
         if(std::fabs(derivative(previous_result) - 0) < epsilon) {
-            Log::error() << "Can't start Newton-Raphson iteration at a point "
+            std::cerr << "Can't start Newton-Raphson iteration at a point "
                     "where the derivative is zero" << std::endl;
             throw -1;
         }

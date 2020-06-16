@@ -6,6 +6,9 @@ class Diode : public Component {
 
 public:
 
+    static constexpr double saturation_current = std::pow(10, -14);
+    static constexpr double thermal_voltage = 0.026;
+
     double value;
 
     static std::shared_ptr<Diode> parse(TextBuffer &buffer);
@@ -46,9 +49,14 @@ std::shared_ptr<Diode> Diode::parse(TextBuffer &buffer) {
         return nullptr;
     }
 
-    return nullptr;
+    return diode;
 }
 
 void Diode::simulate(const std::shared_ptr<Transient> &transient,
         const Schematic &schematic, const double &time) {
+
+    const auto voltage = transient->get_voltage(node_hashes[0], node_hashes[1]);
+    const auto exponent = std::exp(voltage / thermal_voltage);
+    const double value = saturation_current * (exponent - 1);
+    transient->add_current(node_hashes[0], node_hashes[1], hash, value);
 }

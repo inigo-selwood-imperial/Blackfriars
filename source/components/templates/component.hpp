@@ -2,9 +2,9 @@
 
 #include <memory>
 
-#include "../../text_buffer.hpp"
-#include "../../parse.hpp"
-#include "../../hash.hpp"
+#include "../../utilities/hash.hpp"
+#include "../../utilities/parse.hpp"
+#include "../../utilities/text_buffer.hpp"
 
 class Schematic;
 class Operation;

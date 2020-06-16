@@ -2,7 +2,7 @@
 
 #include "component.hpp"
 
-#include "../../hash.hpp"
+#include "../../utilities/hash.hpp"
 
 class Passive {
 

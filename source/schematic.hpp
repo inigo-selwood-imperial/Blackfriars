@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "components/templates/component.hpp"
-#include "hash.hpp"
+#include "utilities/hash.hpp"
 
 class Schematic {
 
