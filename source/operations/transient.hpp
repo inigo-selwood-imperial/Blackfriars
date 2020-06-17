@@ -272,6 +272,39 @@ void Transient::print_headers(std::shared_ptr<std::ostream> stream,
     (*stream) << std::endl;
 }
 
+// Prints the values of the voltages at each node, and the current through
+// each component
+void Transient::print_values(std::shared_ptr<std::ostream> stream,
+        const Matrix &result,
+        const std::vector<std::pair<std::string, Hash>> &nodes,
+        const std::vector<std::shared_ptr<Component>> &components,
+        const double &time) {
+
+    // Print the time stamp
+    (*stream) << time << ", ";
+
+    // Print the node voltages
+    for(unsigned int index = 0; index < nodes.size(); index += 1) {
+        const Hash hash = nodes[index].second;
+        if(hash == 0)
+            continue;
+
+        (*stream) << node_voltages[get_node_index(hash)][2];
+        if(components.empty() == false || (index + 1) < nodes.size())
+            (*stream) << ", ";
+    }
+
+    for(unsigned int index = 0; index < components.size(); index += 1) {
+        const Hash hash = components[index]->hash;
+
+        (*stream) << component_currents[get_component_index(hash)][2];
+        if((index + 1) < components.size())
+            (*stream) << ", ";
+    }
+
+    (*stream) << std::endl;
+}
+
 // Updates the vectors containing node voltages and component currents, using
 // the most recent result matrix from a simulation
 void Transient::update_values(const Matrix &result) {
@@ -318,39 +351,26 @@ void Transient::update_values(const Matrix &result) {
         present = result(node_count + instance - 1, 0);
         gradient = (present - previous) / time_step;
     }
-}
 
-// Prints the values of the voltages at each node, and the current through
-// each component
-void Transient::print_values(std::shared_ptr<std::ostream> stream,
-        const Matrix &result,
-        const std::vector<std::pair<std::string, Hash>> &nodes,
-        const std::vector<std::shared_ptr<Component>> &components,
-        const double &time) {
+    for(const auto &resistance : resistances) {
+        const auto &node_one = resistance.first[0];
+        const auto &node_two = resistance.first[1];
+        const auto &hash = resistance.first[2];
 
-    // Print the time stamp
-    (*stream) << time << ", ";
+        double voltage = 0;
+        if(node_one)
+            voltage += node_voltages[node_one][2];
+        if(node_two)
+            voltage -= node_voltages[node_two][2];
 
-    // Print the node voltages
-    for(unsigned int index = 0; index < nodes.size(); index += 1) {
-        const Hash hash = nodes[index].second;
-        if(hash == 0)
-            continue;
-
-        (*stream) << node_voltages[get_node_index(hash)][2];
-        if(components.empty() == false || (index + 1) < nodes.size())
-            (*stream) << ", ";
+        const double current = voltage / resistance.second;
+        component_currents[get_component_index(hash)][2] = current;
     }
 
-    for(unsigned int index = 0; index < components.size(); index += 1) {
-        const Hash hash = components[index]->hash;
-
-        (*stream) << component_currents[get_component_index(hash)][2];
-        if((index + 1) < components.size())
-            (*stream) << ", ";
+    for(const auto &current : currents) {
+        const auto &hash = current.first[2];
+        component_currents[get_component_index(hash)][2] = current.second;
     }
-
-    (*stream) << std::endl;
 }
 
 // Parses a SPICE-format transient operation definition
@@ -502,12 +522,10 @@ double Transient::get_voltage_integral(const Hash &node_one,
 // Gets the current voltage between two nodes at the present time step
 double Transient::get_voltage(const Hash &node_one, const Hash &node_two) {
     double value;
-    unsigned int index_one = get_node_index(node_one);
-    unsigned int index_two = get_node_index(node_two);
-    if(index_one)
-        value += node_voltages[index_one][2];
-    if(index_two)
-        value -= node_voltages[index_two][2];
+    if(node_one)
+        value += node_voltages[get_node_index(node_one)][2];
+    if(node_two)
+        value -= node_voltages[get_node_index(node_two)][2];
     return value;
 }
 
