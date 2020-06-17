@@ -25,6 +25,7 @@ int main(int argument_count, char *argument_vector[]) {
     std::string output_file_name;
     unsigned int iterations = 1;
     bool silent = false;
+    bool profile = false;
     for(unsigned int index = 0; index < argument_count; index += 1) {
 
         // Parse output file flag
@@ -61,6 +62,9 @@ int main(int argument_count, char *argument_vector[]) {
         // Handle silent input flag
     	else if(arguments[index] == "-silent")
     	    silent = true;
+
+        else if(arguments[index] == "-profile")
+            profile = true;
 
         // Parse input file name
         else if(input_file_name.empty())
@@ -137,9 +141,12 @@ int main(int argument_count, char *argument_vector[]) {
 
     // Stop timer
     duration = (std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000);
-    std::cout << "Process took: " << duration  << " microseconds (" <<
-    	    (duration / iterations) << " microseconds per iteration)" <<
-    	    std::endl;
+
+    if(profile) {
+        std::cout << "Process took: " << duration  << " microseconds (" <<
+        	    (duration / iterations) << " microseconds per iteration)" <<
+        	    std::endl;
+    }
 
     return 0;
 }
