@@ -127,10 +127,8 @@ unsigned int Transient::get_node_index(const Hash &hash) {
         return 0;
 
     const auto &value = node_indices[hash];
-    if(value == 0) {
-        std::cerr << "Node indexing error" << std::endl;
-        throw -1;
-    }
+    if(value == 0)
+        add_node(hash);
 
     return value;
 }
