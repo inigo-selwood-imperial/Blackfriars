@@ -267,7 +267,7 @@ void Transient::print_headers(std::shared_ptr<std::ostream> stream,
         if((index + 1) < components.size())
             (*stream) << ", ";
     }
-    (*stream) << std::endl;
+    (*stream) << '\n';
 }
 
 // Prints the values of the voltages at each node, and the current through
@@ -300,7 +300,7 @@ void Transient::print_values(std::shared_ptr<std::ostream> stream,
             (*stream) << ", ";
     }
 
-    (*stream) << std::endl;
+    (*stream) << '\n';
 }
 
 // Updates the vectors containing node voltages and component currents, using
