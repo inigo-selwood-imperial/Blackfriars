@@ -137,8 +137,8 @@ std::shared_ptr<Component>  Simulation::parse_component(TextBuffer &buffer) {
             return CurrentSource::parse(buffer);
         case 'V':
             return VoltageSource::parse(buffer);
-        case 'D':
-            return Diode::parse(buffer);
+        // case 'D':
+        //     return Diode::parse(buffer);
         default:
             std::cerr << "Couldn't identify component type" << std::endl;
             return nullptr;
