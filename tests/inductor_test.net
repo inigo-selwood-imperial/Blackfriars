@@ -1,0 +1,8 @@
+* Test using just inductors
+
+V1 N001 0 SINE(0 1 100)
+R1 N002 N001 5
+L1 N002 N003 11m
+R2 N003 0 7
+
+.tran 0.1

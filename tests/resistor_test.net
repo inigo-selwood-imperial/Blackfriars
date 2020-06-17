@@ -1,0 +1,11 @@
+* A simple test containing only resistors
+
+V1 N003 0 SINE(0 5 100)
+R1 N004 N003 5
+R2 N002 N004 3
+R3 0 N002 1
+R4 N002 N004 13
+R5 N003 N001 11
+R6 N004 N002 7
+R7 N001 N002 17
+.tran 0.1
